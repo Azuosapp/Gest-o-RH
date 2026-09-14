@@ -35,6 +35,12 @@
         </header>
 
         <section id="dashboard" class="tab-panel dashboard-section">
+          <div class="filters dashboard-filters">
+            <input id="dashboard-search" type="search" placeholder="Buscar candidato, vaga ou responsável" aria-label="Buscar nos indicadores">
+            <select id="dashboard-status-filter" aria-label="Filtrar indicadores por status"><option value="">Todos os status</option></select>
+            <select id="dashboard-job-filter" aria-label="Filtrar indicadores por vaga"><option value="">Todas as vagas</option></select>
+            <select id="dashboard-source-filter" aria-label="Filtrar indicadores por origem"><option value="">Todas as origens</option></select>
+          </div>
           <div class="metrics" id="metrics"></div>
           <div class="content-grid">
             <article class="panel">
@@ -116,7 +122,7 @@
         <section id="dossie" class="tab-panel hidden">
           <div class="dossier-toolbar">
             <div><p class="eyebrow">Gestão de pessoas</p><h2>Dossiê do colaborador</h2><p class="muted">Cadastro completo, documentos e histórico funcional em um só lugar.</p></div>
-            <div class="dossier-actions"><select id="employee-picker" aria-label="Selecionar colaborador"></select><button type="button" class="button secondary" id="new-employee">+ Novo</button><button type="button" class="button primary" id="save-employee">Salvar cadastro</button></div>
+            <div class="dossier-actions"><input id="employee-search" type="search" placeholder="Buscar colaborador" aria-label="Buscar colaborador"><select id="employee-status-filter" aria-label="Filtrar colaborador por status"><option value="">Todos os status</option></select><select id="employee-department-filter" aria-label="Filtrar colaborador por departamento"><option value="">Todos os departamentos</option></select><select id="employee-picker" aria-label="Selecionar colaborador"></select><button type="button" class="button secondary" id="new-employee">+ Novo</button><button type="button" class="button primary" id="save-employee">Salvar cadastro</button></div>
           </div>
           <form id="employee-form">
             <input type="hidden" id="employee-id">
@@ -189,6 +195,7 @@
               <p class="muted">Centralize arquivos dos colaboradores, organize por categoria e acompanhe todas as versões.</p>
             </div>
             <div class="documents-actions">
+              <input id="documents-employee-search" type="search" placeholder="Buscar colaborador" aria-label="Buscar colaborador nos documentos">
               <select id="documents-employee-picker" aria-label="Selecionar colaborador"></select>
               <button type="button" class="button primary" id="upload-document">+ Fazer upload</button>
             </div>

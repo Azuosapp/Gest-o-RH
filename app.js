@@ -76,16 +76,20 @@ function setupFilters() {
   addOptions($("#status-filter"), statuses, "Todos os status");
   addOptions($("#job-filter"), uniqueValues("job"), "Todas as vagas");
   addOptions($("#source-filter"), sources, "Todas as origens");
+  addOptions($("#dashboard-status-filter"), statuses, "Todos os status");
+  addOptions($("#dashboard-job-filter"), uniqueValues("job"), "Todas as vagas");
+  addOptions($("#dashboard-source-filter"), sources, "Todas as origens");
   addOptions($("#status"), statuses, "Selecione o status");
   addOptions($("#source"), sources, "Selecione a origem");
   $("#jobs").innerHTML = uniqueValues("job").map((job) => `<option value="${job}">`).join("");
 }
 
 function renderDashboard() {
-  const total = candidates.length;
-  const waiting = candidates.filter((candidate) => candidate.status === "Aguardando").length;
-  const approved = candidates.filter((candidate) => candidate.status.includes("Aprovado")).length;
-  const hired = candidates.filter((candidate) => candidate.status === "Contratado").length;
+  const dashboardCandidates = getFilteredDashboardCandidates();
+  const total = dashboardCandidates.length;
+  const waiting = dashboardCandidates.filter((candidate) => candidate.status === "Aguardando").length;
+  const approved = dashboardCandidates.filter((candidate) => candidate.status.includes("Aprovado")).length;
+  const hired = dashboardCandidates.filter((candidate) => candidate.status === "Contratado").length;
   $("#metrics").innerHTML = [
     ["Total de currículos", total, "Base cadastrada"],
     ["Aguardando triagem", waiting, "Ação pendente"],
@@ -93,14 +97,28 @@ function renderDashboard() {
     ["Contratados", hired, "Resultado final"]
   ].map(([label, value, note]) => `<div class="metric"><div class="metric-label">${label}</div><div class="metric-value">${value}</div><div class="metric-note">${note}</div></div>`).join("");
 
-  const counts = statuses.map((status) => ({ status, count: candidates.filter((candidate) => candidate.status === status).length }));
+  const counts = statuses.map((status) => ({ status, count: dashboardCandidates.filter((candidate) => candidate.status === status).length }));
   const max = Math.max(...counts.map((item) => item.count), 1);
   $("#funnel").innerHTML = counts.map(({ status, count }) => `<div class="funnel-row"><span>${status}</span><div class="funnel-bar"><div class="funnel-fill" style="width:${(count / max) * 100}%"></div></div><span class="funnel-count">${count}</span></div>`).join("");
   $("#funnel-total").textContent = `${total} candidatos`;
 
-  const sourceCounts = sources.map((source) => ({ source, count: candidates.filter((candidate) => candidate.source === source).length })).filter((item) => item.count > 0).sort((a, b) => b.count - a.count);
+  const sourceCounts = sources.map((source) => ({ source, count: dashboardCandidates.filter((candidate) => candidate.source === source).length })).filter((item) => item.count > 0).sort((a, b) => b.count - a.count);
   const sourceMax = Math.max(...sourceCounts.map((item) => item.count), 1);
   $("#sources").innerHTML = sourceCounts.length ? sourceCounts.map(({ source, count }) => `<div class="source-row"><span>${source}</span><div class="source-bar"><div class="source-fill" style="width:${(count / sourceMax) * 100}%"></div></div><strong>${count}</strong></div>`).join("") : `<span class="muted">Ainda não há origens cadastradas.</span>`;
+}
+
+function getFilteredDashboardCandidates() {
+  const query = $("#dashboard-search").value.toLowerCase().trim();
+  const status = $("#dashboard-status-filter").value;
+  const job = $("#dashboard-job-filter").value;
+  const source = $("#dashboard-source-filter").value;
+  return candidates.filter((candidate) => {
+    const values = [candidate.name, candidate.phone, candidate.job, candidate.owner, candidate.source, candidate.status];
+    return (!query || values.some((value) => String(value || "").toLowerCase().includes(query)))
+      && (!status || candidate.status === status)
+      && (!job || candidate.job === job)
+      && (!source || candidate.source === source);
+  });
 }
 
 function getFilteredCandidates() {
@@ -109,7 +127,7 @@ function getFilteredCandidates() {
   const job = $("#job-filter").value;
   const source = $("#source-filter").value;
   return candidates.filter((candidate) => {
-    const matchesQuery = !query || [candidate.name, candidate.phone, candidate.job].some((value) => value.toLowerCase().includes(query));
+    const matchesQuery = !query || [candidate.name, candidate.phone, candidate.job, candidate.owner, candidate.source, candidate.status].some((value) => String(value || "").toLowerCase().includes(query));
     return matchesQuery && (!status || candidate.status === status) && (!job || candidate.job === job) && (!source || candidate.source === source);
   });
 }
@@ -161,6 +179,7 @@ $("#candidate-form").addEventListener("submit", (event) => {
   $("#candidate-dialog").close();
 });
 ["#search", "#status-filter", "#job-filter", "#source-filter"].forEach((selector) => $(selector).addEventListener("input", renderTable));
+["#dashboard-search", "#dashboard-status-filter", "#dashboard-job-filter", "#dashboard-source-filter"].forEach((selector) => $(selector).addEventListener("input", renderDashboard));
 $("#candidate-table").addEventListener("click", (event) => {
   const id = Number(event.target.dataset.edit);
   if (id) openCandidate(candidates.find((candidate) => candidate.id === id));
@@ -298,8 +317,26 @@ function renderEmployeeRecords(employee) {
 }
 
 function refreshEmployeePicker() {
-  $("#employee-picker").innerHTML = employees.map((employee) => `<option value="${employee.id}">${employee.name}</option>`).join("");
+  const query = $("#employee-search").value.toLowerCase().trim();
+  const status = $("#employee-status-filter").value;
+  const department = $("#employee-department-filter").value;
+  const filtered = employees.filter((employee) => {
+    const values = [employee.name, employee.cpf, employee.email, employee.role, employee.department, employee.unit];
+    return (!query || values.some((value) => String(value || "").toLowerCase().includes(query)))
+      && (!status || employee.status === status)
+      && (!department || employee.department === department);
+  });
+  $("#employee-picker").innerHTML = filtered.map((employee) => `<option value="${employee.id}">${escapeHtml(employee.name)}</option>`).join("");
+  if (!filtered.length) {
+    $("#employee-picker").innerHTML = `<option value="">Nenhum colaborador encontrado</option>`;
+  }
   $("#employee-picker").value = $("#employee-id").value || employees[0].id;
+}
+
+function setupEmployeeFilters() {
+  const departments = [...new Set(employees.map((employee) => employee.department).filter(Boolean))].sort();
+  $("#employee-status-filter").innerHTML = `<option value="">Todos os status</option>${["Ativo", "Férias", "Afastado", "Desligado"].map((status) => `<option>${status}</option>`).join("")}`;
+  $("#employee-department-filter").innerHTML = `<option value="">Todos os departamentos</option>${departments.map((department) => `<option>${escapeHtml(department)}</option>`).join("")}`;
 }
 
 function saveEmployee() {
@@ -357,6 +394,7 @@ $("#close-record").addEventListener("click", () => $("#record-dialog").close());
 $("#cancel-record").addEventListener("click", () => $("#record-dialog").close());
 
 $("#employee-picker").addEventListener("change", () => fillEmployeeForm(employees.find((employee) => employee.id === Number($("#employee-picker").value))));
+["#employee-search", "#employee-status-filter", "#employee-department-filter"].forEach((selector) => $(selector).addEventListener("input", refreshEmployeePicker));
 $("#save-employee").addEventListener("click", (event) => { event.preventDefault(); saveEmployee(); alert("Cadastro do colaborador salvo."); });
 ["documents", "movements", "trainings", "feedbacks", "medical"].forEach((field) => $(`#add-${field === "medical" ? "medical" : field.slice(0, -1)}`).addEventListener("click", () => addEmployeeRecord(field)));
 $("#dossie").addEventListener("click", (event) => {
@@ -368,12 +406,17 @@ $("#dossie").addEventListener("click", (event) => {
 });
 
 function refreshDocumentsEmployeePicker() {
-  $("#documents-employee-picker").innerHTML = employees.map((employee) => `<option value="${employee.id}">${escapeHtml(employee.name)}</option>`).join("");
+  const query = $("#documents-employee-search").value.toLowerCase().trim();
+  const filtered = employees.filter((employee) => [employee.name, employee.role, employee.department, employee.unit].some((value) => String(value || "").toLowerCase().includes(query)));
+  $("#documents-employee-picker").innerHTML = filtered.length
+    ? filtered.map((employee) => `<option value="${employee.id}">${escapeHtml(employee.name)}</option>`).join("")
+    : `<option value="">Nenhum colaborador encontrado</option>`;
   $("#documents-employee-picker").value = $("#employee-id").value || employees[0]?.id || "";
   refreshDocumentFilters();
 }
 
 $("#documents-employee-picker").addEventListener("change", refreshDocumentFilters);
+$("#documents-employee-search").addEventListener("input", refreshDocumentsEmployeePicker);
 ["#document-search", "#document-category-filter"].forEach((selector) => $(selector).addEventListener("input", renderDocuments));
 $("#upload-document").addEventListener("click", () => openDocumentDialog());
 $("#close-document").addEventListener("click", () => $("#document-dialog").close());
@@ -425,6 +468,7 @@ $("#cancel-version").addEventListener("click", () => $("#version-dialog").close(
 
 setupFilters();
 render();
+setupEmployeeFilters();
 refreshEmployeePicker();
 fillEmployeeForm(employees[0]);
 refreshDocumentsEmployeePicker();
