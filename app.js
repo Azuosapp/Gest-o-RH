@@ -145,7 +145,7 @@ function openCandidate(candidate) {
   $("#candidate-dialog").showModal();
 }
 
-$("#open-form").addEventListener("click", () => openCandidate());
+if ($("#open-form")) $("#open-form").addEventListener("click", () => openCandidate());
 $("#close-form").addEventListener("click", () => $("#candidate-dialog").close());
 $("#cancel-form").addEventListener("click", () => $("#candidate-dialog").close());
 $("#candidate-form").addEventListener("submit", (event) => {
@@ -275,4 +275,4 @@ setupFilters();
 render();
 refreshEmployeePicker();
 fillEmployeeForm(employees[0]);
-activateTab(location.hash.replace("#", "") || "dashboard");
+activateTab(location.hash.replace("#", "") || "dossie");
