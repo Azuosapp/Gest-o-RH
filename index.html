@@ -22,6 +22,7 @@
           <a class="nav-item" href="#candidatos" data-tab="candidatos"><span class="nav-icon">♙</span>Candidatos</a>
           <a class="nav-item" href="#vagas" data-tab="vagas"><span class="nav-icon">▣</span>Vagas</a>
           <a class="nav-item" href="#entrevistas" data-tab="entrevistas"><span class="nav-icon">◷</span>Entrevistas</a>
+          <a class="nav-item" href="#dossie" data-tab="dossie"><span class="nav-icon">▥</span>Dossiê do colaborador</a>
           <a class="nav-item" href="#relatorios" data-tab="relatorios"><span class="nav-icon">▤</span>Relatórios</a>
         </nav>
         <div class="nav-section-label">Sistema</div>
@@ -118,6 +119,69 @@
           <p class="placeholder-copy">Organize as próximas entrevistas e os acionamentos do time de recrutamento.</p>
           <button class="button primary" id="new-interview">+ Agendar entrevista</button>
         </section>
+        <section id="dossie" class="tab-panel hidden">
+          <div class="dossier-toolbar">
+            <div><p class="eyebrow">Gestão de pessoas</p><h2>Dossiê do colaborador</h2><p class="muted">Cadastro completo, documentos e histórico funcional em um só lugar.</p></div>
+            <div class="dossier-actions"><select id="employee-picker" aria-label="Selecionar colaborador"></select><button type="button" class="button secondary" id="new-employee">+ Novo</button><button type="button" class="button primary" id="save-employee">Salvar cadastro</button></div>
+          </div>
+          <form id="employee-form">
+            <input type="hidden" id="employee-id">
+            <div class="dossier-grid">
+              <article class="panel dossier-card dossier-wide">
+                <div class="panel-heading"><div><p class="eyebrow">Identificação</p><h2>Dados pessoais e profissionais</h2></div></div>
+                <div class="form-grid">
+                  <label>Nome completo<input required id="employee-name"></label>
+                  <label>CPF<input id="employee-cpf" placeholder="000.000.000-00"></label>
+                  <label>Data de nascimento<input id="employee-birth" type="date"></label>
+                  <label>E-mail<input id="employee-email" type="email"></label>
+                  <label>Telefone<input id="employee-phone"></label>
+                  <label>Estado civil<input id="employee-marital"></label>
+                  <label>Naturalidade<input id="employee-birthplace"></label>
+                  <label>Escolaridade<input id="employee-education"></label>
+                </div>
+              </article>
+              <article class="panel dossier-card">
+                <div class="panel-heading"><div><p class="eyebrow">Vínculo</p><h2>Dados profissionais</h2></div></div>
+                <div class="form-grid single">
+                  <label>Cargo<input id="employee-role"></label>
+                  <label>Departamento<input id="employee-department"></label>
+                  <label>Gestor imediato<input id="employee-manager"></label>
+                  <label>Unidade<input id="employee-unit"></label>
+                  <label>Data de admissão<input id="employee-admission" type="date"></label>
+                  <label>Tipo de contrato<select id="employee-contract"><option>CLT</option><option>Estágio</option><option>PJ</option><option>Temporário</option></select></label>
+                </div>
+              </article>
+              <article class="panel dossier-card">
+                <div class="panel-heading"><div><p class="eyebrow">Remuneração</p><h2>Salário e benefícios</h2></div></div>
+                <div class="form-grid single">
+                  <label>Salário atual<input id="employee-salary" placeholder="R$ 0,00"></label>
+                  <label>Benefícios<textarea id="employee-benefits" rows="4" placeholder="Vale-alimentação, plano de saúde..."></textarea></label>
+                  <label>Status<select id="employee-status"><option>Ativo</option><option>Férias</option><option>Afastado</option><option>Desligado</option></select></label>
+                </div>
+              </article>
+              <article class="panel dossier-card dossier-wide">
+                <div class="panel-heading"><div><p class="eyebrow">Documentação</p><h2>Documentos pessoais e contratuais</h2></div><button type="button" class="button secondary small" id="add-document">+ Documento</button></div>
+                <div class="record-list" id="documents-list"></div>
+              </article>
+              <article class="panel dossier-card dossier-wide">
+                <div class="panel-heading"><div><p class="eyebrow">Histórico funcional</p><h2>Movimentações, promoções e alterações</h2></div><button type="button" class="button secondary small" id="add-movement">+ Movimentação</button></div>
+                <div class="record-list" id="movements-list"></div>
+              </article>
+              <article class="panel dossier-card dossier-wide">
+                <div class="panel-heading"><div><p class="eyebrow">Desenvolvimento</p><h2>Treinamentos realizados</h2></div><button type="button" class="button secondary small" id="add-training">+ Treinamento</button></div>
+                <div class="record-list" id="trainings-list"></div>
+              </article>
+              <article class="panel dossier-card dossier-wide">
+                <div class="panel-heading"><div><p class="eyebrow">Acompanhamento</p><h2>Feedbacks, advertências e avaliações</h2></div><button type="button" class="button secondary small" id="add-feedback">+ Registro</button></div>
+                <div class="record-list" id="feedbacks-list"></div>
+              </article>
+              <article class="panel dossier-card dossier-wide">
+                <div class="panel-heading"><div><p class="eyebrow">Saúde ocupacional</p><h2>Registro de atestados</h2></div><button type="button" class="button secondary small" id="add-medical">+ Atestado</button></div>
+                <div class="record-list" id="medical-list"></div>
+              </article>
+            </div>
+          </form>
+        </section>
         <section id="relatorios" class="tab-panel panel placeholder-panel hidden">
           <p class="eyebrow">Indicadores</p><h2>Relatórios</h2>
           <p class="placeholder-copy">Os indicadores do funil podem ser exportados e compartilhados com os responsáveis pelas vagas.</p>
@@ -166,6 +230,13 @@
       </form>
     </dialog>
     <datalist id="jobs"></datalist>
+    <dialog id="record-dialog">
+      <form method="dialog" id="record-form">
+        <div class="dialog-heading"><div><p class="eyebrow">Dossiê do colaborador</p><h2 id="record-title">Novo registro</h2></div><button type="button" class="icon-button" id="close-record" aria-label="Fechar">×</button></div>
+        <div id="record-fields" class="form-grid"></div>
+        <div class="dialog-actions"><button type="button" class="button secondary" id="cancel-record">Cancelar</button><button type="submit" class="button primary">Adicionar registro</button></div>
+      </form>
+    </dialog>
     <script src="app.js"></script>
   </body>
 </html>

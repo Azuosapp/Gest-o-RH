@@ -33,6 +33,13 @@ const initialCandidates = [
 ];
 
 let candidates = JSON.parse(localStorage.getItem("candidates")) || initialCandidates;
+const initialEmployees = [{
+  id: 1, name: "Exemplo de colaborador", cpf: "", birth: "", email: "", phone: "", marital: "", birthplace: "", education: "",
+  role: "Analista de Departamento Pessoal", department: "Recursos Humanos", manager: "Gestor responsável", unit: "Matriz",
+  admission: "", contract: "CLT", salary: "R$ 0,00", benefits: "", status: "Ativo",
+  documents: [], movements: [], trainings: [], feedbacks: [], medical: []
+}];
+let employees = JSON.parse(localStorage.getItem("employees")) || initialEmployees;
 const $ = (selector) => document.querySelector(selector);
 
 function activateTab(tabName) {
@@ -172,6 +179,100 @@ $("#clear-data").addEventListener("click", () => {
   activateTab("dashboard");
 });
 
+function currentEmployee() {
+  return employees.find((employee) => employee.id === Number($("#employee-id").value)) || employees[0];
+}
+
+function fillEmployeeForm(employee) {
+  if (!employee) return;
+  $("#employee-id").value = employee.id;
+  const fields = ["name", "cpf", "birth", "email", "phone", "marital", "birthplace", "education", "role", "department", "manager", "unit", "admission", "contract", "salary", "benefits", "status"];
+  fields.forEach((field) => { $(`#employee-${field}`).value = employee[field] || ""; });
+  renderEmployeeRecords(employee);
+}
+
+function renderEmployeeRecords(employee) {
+  const list = (field, empty, renderer) => {
+    const records = employee[field] || [];
+    $(`#${field === "medical" ? "medical" : field}-list`).innerHTML = records.length ? records.map((record, index) => renderer(record, index)).join("") : `<div class="record-empty">${empty}</div>`;
+  };
+  list("documents", "Nenhum documento cadastrado.", (record, index) => `<div class="record-row"><div><strong>${record.name}</strong><span>${record.type || "Documento"} · ${record.date || "Sem data"}</span></div><button type="button" class="remove-record" data-record="documents" data-index="${index}">Remover</button></div>`);
+  list("movements", "Nenhuma movimentação cadastrada.", (record, index) => `<div class="record-row"><div><strong>${record.date || "Sem data"} · ${record.type}</strong><span>${record.description || ""} ${record.role ? `· ${record.role}` : ""}</span></div><button type="button" class="remove-record" data-record="movements" data-index="${index}">Remover</button></div>`);
+  list("trainings", "Nenhum treinamento cadastrado.", (record, index) => `<div class="record-row"><div><strong>${record.name}</strong><span>${record.date || "Sem data"} · ${record.hours || "Carga não informada"}</span></div><button type="button" class="remove-record" data-record="trainings" data-index="${index}">Remover</button></div>`);
+  list("feedbacks", "Nenhum registro cadastrado.", (record, index) => `<div class="record-row"><div><strong>${record.type} · ${record.date || "Sem data"}</strong><span>${record.description || ""}</span></div><button type="button" class="remove-record" data-record="feedbacks" data-index="${index}">Remover</button></div>`);
+  list("medical", "Nenhum atestado cadastrado.", (record, index) => `<div class="record-row"><div><strong>${record.date || "Sem data"} · ${record.days || 0} dia(s)${record.partial ? " · Parcial" : ""}</strong><span>CID: ${record.cid || "Não informado"} · Médico: ${record.doctor || "Não informado"}</span></div><button type="button" class="remove-record" data-record="medical" data-index="${index}">Remover</button></div>`);
+}
+
+function refreshEmployeePicker() {
+  $("#employee-picker").innerHTML = employees.map((employee) => `<option value="${employee.id}">${employee.name}</option>`).join("");
+  $("#employee-picker").value = $("#employee-id").value || employees[0].id;
+}
+
+function saveEmployee() {
+  const id = Number($("#employee-id").value);
+  const employee = employees.find((item) => item.id === id) || { id, documents: [], movements: [], trainings: [], feedbacks: [], medical: [] };
+  ["name", "cpf", "birth", "email", "phone", "marital", "birthplace", "education", "role", "department", "manager", "unit", "admission", "contract", "salary", "benefits", "status"].forEach((field) => { employee[field] = $(`#employee-${field}`).value.trim(); });
+  employees = employees.some((item) => item.id === id) ? employees.map((item) => item.id === id ? employee : item) : [...employees, employee];
+  localStorage.setItem("employees", JSON.stringify(employees));
+  refreshEmployeePicker();
+}
+
+$("#new-employee").addEventListener("click", () => {
+  const employee = { id: Date.now(), name: "Novo colaborador", documents: [], movements: [], trainings: [], feedbacks: [], medical: [], contract: "CLT", status: "Ativo" };
+  employees.push(employee);
+  localStorage.setItem("employees", JSON.stringify(employees));
+  refreshEmployeePicker();
+  fillEmployeeForm(employee);
+  $("#employee-name").focus();
+});
+
+function addEmployeeRecord(field) {
+  const configs = {
+    documents: { title: "Novo documento", fields: [["record-name", "Nome do documento"], ["record-type", "Tipo (RG, contrato, comprovante)"], ["record-date", "Data", "date"]] },
+    movements: { title: "Nova movimentação", fields: [["record-type", "Tipo (admissão, promoção, alteração)"], ["record-description", "Descrição"], ["record-date", "Data", "date"]] },
+    trainings: { title: "Novo treinamento", fields: [["record-name", "Nome do treinamento"], ["record-hours", "Carga horária"], ["record-date", "Data", "date"]] },
+    feedbacks: { title: "Novo registro", fields: [["record-type", "Tipo (feedback, advertência, comunicado, avaliação)"], ["record-description", "Descrição"], ["record-date", "Data", "date"]] },
+    medical: { title: "Novo atestado", fields: [["record-date", "Data do atestado", "date"], ["record-cid", "CID"], ["record-days", "Quantidade de dias", "number"], ["record-doctor", "Nome do médico"], ["record-partial", "Atestado parcial", "checkbox"]] }
+  };
+  const config = configs[field];
+  $("#record-title").textContent = config.title;
+  $("#record-fields").innerHTML = config.fields.map(([id, label, type = "text"]) => type === "checkbox" ? `<label class="check-field"><input id="${id}" type="checkbox">${label}</label>` : `<label>${label}<input id="${id}" type="${type}"></label>`).join("");
+  $("#record-dialog").dataset.field = field;
+  $("#record-dialog").showModal();
+}
+
+$("#record-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const field = $("#record-dialog").dataset.field;
+  const employee = currentEmployee();
+  if (!employee[field]) employee[field] = [];
+  const value = (id) => $(`#${id}`)?.value || "";
+  const record = field === "documents" ? { name: value("record-name"), type: value("record-type"), date: value("record-date") } :
+    field === "movements" ? { type: value("record-type"), description: value("record-description"), date: value("record-date"), role: "" } :
+    field === "trainings" ? { name: value("record-name"), hours: value("record-hours"), date: value("record-date") } :
+    field === "feedbacks" ? { type: value("record-type"), description: value("record-description"), date: value("record-date") } :
+    { date: value("record-date"), cid: value("record-cid"), days: value("record-days"), doctor: value("record-doctor"), partial: $("#record-partial").checked };
+  employee[field].push(record);
+  saveEmployee();
+  renderEmployeeRecords(employee);
+  $("#record-dialog").close();
+});
+$("#close-record").addEventListener("click", () => $("#record-dialog").close());
+$("#cancel-record").addEventListener("click", () => $("#record-dialog").close());
+
+$("#employee-picker").addEventListener("change", () => fillEmployeeForm(employees.find((employee) => employee.id === Number($("#employee-picker").value))));
+$("#save-employee").addEventListener("click", (event) => { event.preventDefault(); saveEmployee(); alert("Cadastro do colaborador salvo."); });
+["documents", "movements", "trainings", "feedbacks", "medical"].forEach((field) => $(`#add-${field === "medical" ? "medical" : field.slice(0, -1)}`).addEventListener("click", () => addEmployeeRecord(field)));
+$("#dossie").addEventListener("click", (event) => {
+  if (!event.target.classList.contains("remove-record")) return;
+  const employee = currentEmployee();
+  employee[event.target.dataset.record].splice(Number(event.target.dataset.index), 1);
+  saveEmployee();
+  renderEmployeeRecords(employee);
+});
+
 setupFilters();
 render();
+refreshEmployeePicker();
+fillEmployeeForm(employees[0]);
 activateTab(location.hash.replace("#", "") || "dashboard");
