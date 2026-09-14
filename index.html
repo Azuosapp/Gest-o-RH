@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Controle de Currículos</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">RH</div>
+          <div>
+            <strong>Grupo Souza</strong>
+            <span>Gestão de talentos</span>
+          </div>
+        </div>
+        <nav class="nav">
+          <a class="nav-item active" href="#dashboard">Dashboard</a>
+          <a class="nav-item" href="#candidatos">Candidatos</a>
+          <a class="nav-item" href="#vagas">Vagas</a>
+        </nav>
+        <div class="sidebar-footer">
+          <span class="status-dot"></span>
+          Dados salvos neste navegador
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Recrutamento e seleção</p>
+            <h1>Controle de Currículos</h1>
+          </div>
+          <button class="button primary" id="open-form">+ Novo candidato</button>
+        </header>
+
+        <section id="dashboard" class="dashboard-section">
+          <div class="metrics" id="metrics"></div>
+          <div class="content-grid">
+            <article class="panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Acompanhamento</p>
+                  <h2>Funil de processos</h2>
+                </div>
+                <span class="muted" id="funnel-total"></span>
+              </div>
+              <div class="funnel" id="funnel"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Origem dos currículos</p>
+                  <h2>Onde os candidatos chegam</h2>
+                </div>
+              </div>
+              <div class="source-list" id="sources"></div>
+            </article>
+          </div>
+        </section>
+
+        <section id="candidatos" class="panel candidates-panel">
+          <div class="panel-heading candidates-heading">
+            <div>
+              <p class="eyebrow">Banco de talentos</p>
+              <h2>Candidatos</h2>
+            </div>
+            <span class="muted" id="candidate-count"></span>
+          </div>
+          <div class="filters">
+            <label class="search-field">
+              <span class="sr-only">Buscar candidato</span>
+              <input id="search" type="search" placeholder="Buscar por nome, telefone ou vaga">
+            </label>
+            <select id="status-filter" aria-label="Filtrar por status">
+              <option value="">Todos os status</option>
+            </select>
+            <select id="job-filter" aria-label="Filtrar por vaga">
+              <option value="">Todas as vagas</option>
+            </select>
+            <select id="source-filter" aria-label="Filtrar por origem">
+              <option value="">Todas as origens</option>
+            </select>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Candidato</th>
+                  <th>Vaga</th>
+                  <th>Origem</th>
+                  <th>Responsável</th>
+                  <th>Status</th>
+                  <th>Último contato</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="candidate-table"></tbody>
+            </table>
+            <div class="empty-state hidden" id="empty-state">Nenhum candidato encontrado.</div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="candidate-dialog">
+      <form method="dialog" id="candidate-form">
+        <div class="dialog-heading">
+          <div>
+            <p class="eyebrow">Banco de talentos</p>
+            <h2 id="dialog-title">Novo candidato</h2>
+          </div>
+          <button type="button" class="icon-button" id="close-form" aria-label="Fechar">×</button>
+        </div>
+        <input type="hidden" id="candidate-id">
+        <div class="form-grid">
+          <label>Nome completo<input required id="name" type="text"></label>
+          <label>Telefone<input id="phone" type="text"></label>
+          <label>Vaga<input required id="job" type="text" list="jobs"></label>
+          <label>Origem<select required id="source"></select></label>
+          <label>Responsável<input id="owner" type="text" value="A definir"></label>
+          <label>Status<select required id="status"></select></label>
+          <label>Experiência<select id="experience">
+            <option value="-">Não informado</option>
+            <option>Sem experiência</option>
+            <option>06 meses a 1 ano</option>
+            <option>1 ano a 3 anos</option>
+            <option>3 anos a 5 anos</option>
+            <option>Acima de 5 anos</option>
+          </select></label>
+          <label>Pretensão salarial<input id="salary" type="text" placeholder="Ex.: R$ 3.500,00"></label>
+          <label class="full-width">Observações<textarea id="notes" rows="3"></textarea></label>
+        </div>
+        <div class="dialog-actions">
+          <button type="button" class="button secondary" id="cancel-form">Cancelar</button>
+          <button type="submit" class="button primary">Salvar candidato</button>
+        </div>
+      </form>
+    </dialog>
+    <datalist id="jobs"></datalist>
+    <script src="app.js"></script>
+  </body>
+</html>
