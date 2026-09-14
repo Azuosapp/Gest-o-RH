@@ -64,6 +64,7 @@ h2 { font-size: 17px; }
 .source-bar { height: 7px; border-radius: 20px; background: #eaf0fa; overflow: hidden; }
 .source-fill { height: 100%; background: #7d9eea; border-radius: inherit; }
 .candidates-heading { margin-bottom: 18px; }
+.candidates-heading-actions { display: flex; align-items: center; gap: 12px; }
 .filters { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 10px; margin-bottom: 18px; }
 input, select, textarea { width: 100%; border: 1px solid #dce3ee; border-radius: 7px; background: #fff; color: var(--ink); padding: 10px 11px; outline: none; }
 input:focus, select:focus, textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 3px #2864dc1c; }
@@ -158,6 +159,7 @@ dialog form { padding: 27px; }
   .dossier-toolbar { align-items: stretch; flex-direction: column; }
   .dossier-actions { flex-direction: column; align-items: stretch; }
   .dossier-actions select { min-width: 0; }
+  .candidates-heading-actions { align-items: flex-end; flex-direction: column; gap: 8px; }
   .documents-toolbar, .document-library-heading { align-items: stretch; flex-direction: column; }
   .documents-actions, .document-filters { flex-direction: column; align-items: stretch; }
   .documents-actions select, .document-filters input { min-width: 0; }

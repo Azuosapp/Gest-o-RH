@@ -165,6 +165,10 @@ $("#candidate-table").addEventListener("click", (event) => {
   const id = Number(event.target.dataset.edit);
   if (id) openCandidate(candidates.find((candidate) => candidate.id === id));
 });
+$("#show-curriculum-dashboard").addEventListener("click", () => {
+  activateTab("dashboard");
+  history.replaceState(null, "", "#dashboard");
+});
 $("#export-report").addEventListener("click", () => {
   const headers = ["Nome", "Telefone", "Vaga", "Origem", "Responsável", "Status", "Último contato"];
   const rows = candidates.map((candidate) => [candidate.name, candidate.phone, candidate.job, candidate.source, candidate.owner, candidate.status, candidate.lastContact]);
