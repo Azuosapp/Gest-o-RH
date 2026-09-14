@@ -20,14 +20,8 @@ button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
 .app-shell { display: flex; min-height: 100vh; }
 .sidebar { width: 252px; background: linear-gradient(180deg, #0a1a4a 0%, #0f2460 60%, #1b3a8c 100%); color: #fff; padding: 27px 18px; display: flex; flex-direction: column; }
-.brand { display: flex; gap: 12px; align-items: center; padding: 0 10px 42px; }
-.brand-mark { width: 32px; height: 38px; border-radius: 10px; display: grid; place-items: center; position: relative; background: var(--yellow); color: #fff; font-size: 8px; font-weight: 900; }
-.brand-mark span { position: relative; z-index: 1; transform: rotate(-8deg); opacity: .95; }
-.brand-mark i { position: absolute; width: 8px; height: 8px; border-radius: 50%; background: #fff; right: 7px; top: 10px; opacity: .9; }
-.brand strong, .brand span { display: block; }
-.brand strong { color: #fff; font-size: 10px; line-height: 1; letter-spacing: .1em; }
-.brand b { display: block; color: var(--yellow); font-size: 15px; line-height: 1.15; letter-spacing: -.04em; margin-top: 3px; }
-.brand span { color: #fff; font-size: 10px; line-height: 1.2; margin-top: 4px; max-width: 75px; }
+.brand { display: flex; align-items: center; padding: 0 10px 42px; }
+.brand img { display: block; width: 176px; height: 58px; }
 .nav { display: grid; gap: 7px; }
 .nav-item { color: #aebbd2; border-radius: 10px; padding: 12px 14px; text-decoration: none; font-size: 13px; display: flex; align-items: center; gap: 10px; }
 .nav-item.active, .nav-item:hover { color: #fff; background: rgba(255,255,255,.12); }
