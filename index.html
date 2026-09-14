@@ -10,20 +10,25 @@
     <div class="app-shell">
       <aside class="sidebar">
         <div class="brand">
-          <div class="brand-mark">RH</div>
+          <div class="brand-mark"><span>az</span></div>
           <div>
-            <strong>Grupo Souza</strong>
+            <strong>GRUPO <b>azuos</b></strong>
             <span>Gestão de talentos</span>
           </div>
         </div>
         <nav class="nav">
-          <a class="nav-item active" href="#dashboard">Dashboard</a>
-          <a class="nav-item" href="#candidatos">Candidatos</a>
-          <a class="nav-item" href="#vagas">Vagas</a>
+          <a class="nav-item active" href="#dashboard" data-tab="dashboard"><span class="nav-icon">⌂</span>Dashboard</a>
+          <a class="nav-item" href="#candidatos" data-tab="candidatos"><span class="nav-icon">♙</span>Candidatos</a>
+          <a class="nav-item" href="#vagas" data-tab="vagas"><span class="nav-icon">▣</span>Vagas</a>
+          <a class="nav-item" href="#entrevistas" data-tab="entrevistas"><span class="nav-icon">◷</span>Entrevistas</a>
+          <a class="nav-item" href="#relatorios" data-tab="relatorios"><span class="nav-icon">▤</span>Relatórios</a>
+        </nav>
+        <div class="nav-section-label">Sistema</div>
+        <nav class="nav">
+          <a class="nav-item" href="#configuracoes" data-tab="configuracoes"><span class="nav-icon">⚙</span>Configurações</a>
         </nav>
         <div class="sidebar-footer">
-          <span class="status-dot"></span>
-          Dados salvos neste navegador
+          <div class="user-card"><div class="user-avatar">RS</div><div><strong>RH Grupo Souza</strong><span>Administrador</span></div></div>
         </div>
       </aside>
 
@@ -36,7 +41,7 @@
           <button class="button primary" id="open-form">+ Novo candidato</button>
         </header>
 
-        <section id="dashboard" class="dashboard-section">
+        <section id="dashboard" class="tab-panel dashboard-section">
           <div class="metrics" id="metrics"></div>
           <div class="content-grid">
             <article class="panel">
@@ -61,7 +66,7 @@
           </div>
         </section>
 
-        <section id="candidatos" class="panel candidates-panel">
+        <section id="candidatos" class="tab-panel panel candidates-panel hidden">
           <div class="panel-heading candidates-heading">
             <div>
               <p class="eyebrow">Banco de talentos</p>
@@ -101,6 +106,26 @@
             </table>
             <div class="empty-state hidden" id="empty-state">Nenhum candidato encontrado.</div>
           </div>
+        </section>
+        <section id="vagas" class="tab-panel panel placeholder-panel hidden">
+          <p class="eyebrow">Recrutamento</p><h2>Vagas</h2>
+          <p class="placeholder-copy">Acompanhe as posições abertas e relacione cada vaga aos candidatos do processo seletivo.</p>
+          <button class="button primary" id="new-job">+ Nova vaga</button>
+        </section>
+        <section id="entrevistas" class="tab-panel panel placeholder-panel hidden">
+          <p class="eyebrow">Agenda</p><h2>Entrevistas</h2>
+          <p class="placeholder-copy">Organize as próximas entrevistas e os acionamentos do time de recrutamento.</p>
+          <button class="button primary" id="new-interview">+ Agendar entrevista</button>
+        </section>
+        <section id="relatorios" class="tab-panel panel placeholder-panel hidden">
+          <p class="eyebrow">Indicadores</p><h2>Relatórios</h2>
+          <p class="placeholder-copy">Os indicadores do funil podem ser exportados e compartilhados com os responsáveis pelas vagas.</p>
+          <button class="button secondary" id="export-report">Exportar dados</button>
+        </section>
+        <section id="configuracoes" class="tab-panel panel placeholder-panel hidden">
+          <p class="eyebrow">Sistema</p><h2>Configurações</h2>
+          <p class="placeholder-copy">Preferências do sistema e dados salvos no navegador.</p>
+          <button class="button secondary" id="clear-data">Restaurar dados de demonstração</button>
         </section>
       </main>
     </div>

@@ -35,6 +35,19 @@ const initialCandidates = [
 let candidates = JSON.parse(localStorage.getItem("candidates")) || initialCandidates;
 const $ = (selector) => document.querySelector(selector);
 
+function activateTab(tabName) {
+  document.querySelectorAll(".nav-item[data-tab]").forEach((item) => item.classList.toggle("active", item.dataset.tab === tabName));
+  document.querySelectorAll(".tab-panel").forEach((panel) => panel.classList.toggle("hidden", panel.id !== tabName));
+}
+
+document.querySelectorAll(".nav-item[data-tab]").forEach((item) => {
+  item.addEventListener("click", (event) => {
+    event.preventDefault();
+    activateTab(item.dataset.tab);
+    history.replaceState(null, "", `#${item.dataset.tab}`);
+  });
+});
+
 function uniqueValues(field) {
   return [...new Set(candidates.map((candidate) => candidate[field]).filter(Boolean))].sort();
 }
@@ -142,6 +155,23 @@ $("#candidate-table").addEventListener("click", (event) => {
   const id = Number(event.target.dataset.edit);
   if (id) openCandidate(candidates.find((candidate) => candidate.id === id));
 });
+$("#export-report").addEventListener("click", () => {
+  const headers = ["Nome", "Telefone", "Vaga", "Origem", "Responsável", "Status", "Último contato"];
+  const rows = candidates.map((candidate) => [candidate.name, candidate.phone, candidate.job, candidate.source, candidate.owner, candidate.status, candidate.lastContact]);
+  const csv = [headers, ...rows].map((row) => row.map((value) => `"${String(value || "").replaceAll('"', '""')}"`).join(";")).join("\n");
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" }));
+  link.download = "relatorio-candidatos.csv";
+  link.click();
+  URL.revokeObjectURL(link.href);
+});
+$("#clear-data").addEventListener("click", () => {
+  candidates = [...initialCandidates];
+  setupFilters();
+  render();
+  activateTab("dashboard");
+});
 
 setupFilters();
 render();
+activateTab(location.hash.replace("#", "") || "dashboard");
