@@ -37,9 +37,12 @@ const initialEmployees = [{
   id: 1, name: "Exemplo de colaborador", cpf: "", birth: "", email: "", phone: "", marital: "", birthplace: "", education: "",
   role: "Analista de Departamento Pessoal", department: "Recursos Humanos", manager: "Gestor responsável", unit: "Matriz",
   admission: "", contract: "CLT", salary: "R$ 0,00", benefits: "", status: "Ativo",
-  documents: [], movements: [], trainings: [], feedbacks: [], medical: []
+  documents: [], documentLibrary: [], movements: [], trainings: [], feedbacks: [], medical: []
 }];
 let employees = JSON.parse(localStorage.getItem("employees")) || initialEmployees;
+employees.forEach((employee) => {
+  if (!Array.isArray(employee.documentLibrary)) employee.documentLibrary = [];
+});
 const $ = (selector) => document.querySelector(selector);
 
 function activateTab(tabName) {
@@ -183,6 +186,93 @@ function currentEmployee() {
   return employees.find((employee) => employee.id === Number($("#employee-id").value)) || employees[0];
 }
 
+function escapeHtml(value) {
+  return String(value || "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[character]));
+}
+
+function formatFileSize(bytes) {
+  if (!bytes) return "Tamanho não informado";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function documentDate(date) {
+  return new Date(date).toLocaleDateString("pt-BR");
+}
+
+function renderDocuments() {
+  const employee = employees.find((item) => item.id === Number($("#documents-employee-picker").value)) || employees[0];
+  if (!employee) return;
+  const documents = employee.documentLibrary || [];
+  const query = $("#document-search").value.toLowerCase().trim();
+  const category = $("#document-category-filter").value;
+  const filtered = documents.filter((document) => {
+    const matchesQuery = !query || [document.title, document.category, document.notes].some((value) => String(value || "").toLowerCase().includes(query));
+    return matchesQuery && (!category || document.category === category);
+  });
+  const versions = documents.reduce((total, document) => total + (document.versions || []).length, 0);
+  $("#document-count").textContent = documents.length;
+  $("#document-category-count").textContent = new Set(documents.map((document) => document.category)).size;
+  $("#document-version-count").textContent = versions;
+  $("#document-list").innerHTML = filtered.length ? filtered.map((document) => {
+    const latest = document.versions[document.versions.length - 1];
+    return `<div class="document-card">
+      <div class="document-card-main">
+        <div class="document-card-title">${escapeHtml(document.title)}</div>
+        <div class="document-card-meta">${escapeHtml(document.category)} · ${document.versions.length} versão(ões) · Atualizado em ${documentDate(latest.createdAt)} · ${formatFileSize(latest.size)}</div>
+        ${document.notes ? `<div class="document-card-notes">${escapeHtml(document.notes)}</div>` : ""}
+      </div>
+      <div class="document-card-actions">
+        <button type="button" class="document-action" data-document-action="download" data-document-id="${document.id}">Baixar</button>
+        <button type="button" class="document-action" data-document-action="version" data-document-id="${document.id}">Nova versão</button>
+        <button type="button" class="document-action" data-document-action="history" data-document-id="${document.id}">Histórico</button>
+        <button type="button" class="document-action danger" data-document-action="remove" data-document-id="${document.id}">Remover</button>
+      </div>
+    </div>`;
+  }).join("") : `<div class="record-empty">Nenhum documento encontrado para este colaborador.</div>`;
+}
+
+function refreshDocumentFilters() {
+  const employee = employees.find((item) => item.id === Number($("#documents-employee-picker").value)) || employees[0];
+  const categories = [...new Set((employee?.documentLibrary || []).map((document) => document.category))].sort();
+  const selected = $("#document-category-filter").value;
+  $("#document-category-filter").innerHTML = `<option value="">Todas as categorias</option>${categories.map((category) => `<option value="${escapeHtml(category)}">${escapeHtml(category)}</option>`).join("")}`;
+  $("#document-category-filter").value = categories.includes(selected) ? selected : "";
+  renderDocuments();
+}
+
+function openDocumentDialog(document) {
+  $("#document-form").reset();
+  $("#document-dialog").dataset.documentId = document ? document.id : "";
+  $("#document-dialog-title").textContent = document ? "Adicionar nova versão" : "Fazer upload";
+  if (document) {
+    $("#document-title").value = document.title;
+    $("#document-category").value = document.category;
+    $("#document-notes").value = document.notes || "";
+  }
+  $("#document-dialog").showModal();
+}
+
+function saveDocumentFile(file, document) {
+  const reader = new FileReader();
+  reader.addEventListener("load", () => {
+    const version = { id: Date.now(), name: file.name, size: file.size, type: file.type || "application/octet-stream", data: reader.result, createdAt: new Date().toISOString() };
+    const employee = employees.find((item) => item.id === Number($("#documents-employee-picker").value)) || employees[0];
+    if (!employee.documentLibrary) employee.documentLibrary = [];
+    if (document) {
+      document.versions.push(version);
+      document.notes = $("#document-notes").value.trim();
+    } else {
+      employee.documentLibrary.unshift({ id: Date.now(), title: $("#document-title").value.trim(), category: $("#document-category").value, notes: $("#document-notes").value.trim(), versions: [version] });
+    }
+    localStorage.setItem("employees", JSON.stringify(employees));
+    refreshDocumentFilters();
+    $("#document-dialog").close();
+  });
+  reader.readAsDataURL(file);
+}
+
 function fillEmployeeForm(employee) {
   if (!employee) return;
   $("#employee-id").value = employee.id;
@@ -210,18 +300,20 @@ function refreshEmployeePicker() {
 
 function saveEmployee() {
   const id = Number($("#employee-id").value);
-  const employee = employees.find((item) => item.id === id) || { id, documents: [], movements: [], trainings: [], feedbacks: [], medical: [] };
+  const employee = employees.find((item) => item.id === id) || { id, documents: [], documentLibrary: [], movements: [], trainings: [], feedbacks: [], medical: [] };
   ["name", "cpf", "birth", "email", "phone", "marital", "birthplace", "education", "role", "department", "manager", "unit", "admission", "contract", "salary", "benefits", "status"].forEach((field) => { employee[field] = $(`#employee-${field}`).value.trim(); });
   employees = employees.some((item) => item.id === id) ? employees.map((item) => item.id === id ? employee : item) : [...employees, employee];
   localStorage.setItem("employees", JSON.stringify(employees));
   refreshEmployeePicker();
+  refreshDocumentsEmployeePicker();
 }
 
 $("#new-employee").addEventListener("click", () => {
-  const employee = { id: Date.now(), name: "Novo colaborador", documents: [], movements: [], trainings: [], feedbacks: [], medical: [], contract: "CLT", status: "Ativo" };
+  const employee = { id: Date.now(), name: "Novo colaborador", documents: [], documentLibrary: [], movements: [], trainings: [], feedbacks: [], medical: [], contract: "CLT", status: "Ativo" };
   employees.push(employee);
   localStorage.setItem("employees", JSON.stringify(employees));
   refreshEmployeePicker();
+  refreshDocumentsEmployeePicker();
   fillEmployeeForm(employee);
   $("#employee-name").focus();
 });
@@ -271,8 +363,65 @@ $("#dossie").addEventListener("click", (event) => {
   renderEmployeeRecords(employee);
 });
 
+function refreshDocumentsEmployeePicker() {
+  $("#documents-employee-picker").innerHTML = employees.map((employee) => `<option value="${employee.id}">${escapeHtml(employee.name)}</option>`).join("");
+  $("#documents-employee-picker").value = $("#employee-id").value || employees[0]?.id || "";
+  refreshDocumentFilters();
+}
+
+$("#documents-employee-picker").addEventListener("change", refreshDocumentFilters);
+["#document-search", "#document-category-filter"].forEach((selector) => $(selector).addEventListener("input", renderDocuments));
+$("#upload-document").addEventListener("click", () => openDocumentDialog());
+$("#close-document").addEventListener("click", () => $("#document-dialog").close());
+$("#cancel-document").addEventListener("click", () => $("#document-dialog").close());
+$("#document-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const file = $("#document-file").files[0];
+  if (!file) return;
+  const documentId = Number($("#document-dialog").dataset.documentId);
+  const employee = employees.find((item) => item.id === Number($("#documents-employee-picker").value)) || employees[0];
+  const document = (employee.documentLibrary || []).find((item) => item.id === documentId);
+  saveDocumentFile(file, document);
+});
+$("#document-list").addEventListener("click", (event) => {
+  const action = event.target.dataset.documentAction;
+  if (!action) return;
+  const employee = employees.find((item) => item.id === Number($("#documents-employee-picker").value)) || employees[0];
+  const selectedDocument = (employee.documentLibrary || []).find((item) => item.id === Number(event.target.dataset.documentId));
+  if (!selectedDocument) return;
+  if (action === "version") openDocumentDialog(selectedDocument);
+  if (action === "remove") {
+    employee.documentLibrary = employee.documentLibrary.filter((item) => item.id !== selectedDocument.id);
+    localStorage.setItem("employees", JSON.stringify(employees));
+    refreshDocumentFilters();
+  }
+  if (action === "download") {
+    const latest = selectedDocument.versions[selectedDocument.versions.length - 1];
+    const link = document.createElement("a");
+    link.href = latest.data;
+    link.download = latest.name;
+    link.click();
+  }
+  if (action === "history") {
+    $("#version-dialog-title").textContent = `Versões de ${selectedDocument.title}`;
+    $("#version-list").innerHTML = selectedDocument.versions.slice().reverse().map((version, index) => `<div class="version-row"><div><strong>Versão ${selectedDocument.versions.length - index} · ${escapeHtml(version.name)}</strong><span>${documentDate(version.createdAt)} · ${formatFileSize(version.size)}</span></div><button type="button" class="document-action" data-version-data="${version.data}" data-version-name="${escapeHtml(version.name)}">Baixar</button></div>`).join("");
+    $("#version-dialog").showModal();
+  }
+});
+$("#version-list").addEventListener("click", (event) => {
+  const data = event.target.dataset.versionData;
+  if (!data) return;
+  const link = document.createElement("a");
+  link.href = data;
+  link.download = event.target.dataset.versionName;
+  link.click();
+});
+$("#close-version").addEventListener("click", () => $("#version-dialog").close());
+$("#cancel-version").addEventListener("click", () => $("#version-dialog").close());
+
 setupFilters();
 render();
 refreshEmployeePicker();
 fillEmployeeForm(employees[0]);
+refreshDocumentsEmployeePicker();
 activateTab(location.hash.replace("#", "") || "dossie");

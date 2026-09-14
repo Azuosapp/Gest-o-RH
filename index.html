@@ -14,6 +14,7 @@
         </div>
         <nav class="nav">
           <a class="nav-item active" href="#dossie" data-tab="dossie"><span class="nav-icon">▥</span>Dossiê do colaborador</a>
+          <a class="nav-item" href="#documentos" data-tab="documentos"><span class="nav-icon">▤</span>Gestão de documentos</a>
         </nav>
         <div class="nav-section-label">Sistema</div>
         <nav class="nav">
@@ -176,6 +177,37 @@
           <p class="placeholder-copy">Os indicadores do funil podem ser exportados e compartilhados com os responsáveis pelas vagas.</p>
           <button class="button secondary" id="export-report">Exportar dados</button>
         </section>
+        <section id="documentos" class="tab-panel hidden">
+          <div class="documents-toolbar">
+            <div>
+              <p class="eyebrow">Gestão de pessoas</p>
+              <h2>Gestão de documentos</h2>
+              <p class="muted">Centralize arquivos dos colaboradores, organize por categoria e acompanhe todas as versões.</p>
+            </div>
+            <div class="documents-actions">
+              <select id="documents-employee-picker" aria-label="Selecionar colaborador"></select>
+              <button type="button" class="button primary" id="upload-document">+ Fazer upload</button>
+            </div>
+          </div>
+          <div class="document-summary">
+            <div class="metric"><div class="metric-label">Documentos</div><div class="metric-value" id="document-count">0</div><div class="metric-note">Arquivos cadastrados</div></div>
+            <div class="metric"><div class="metric-label">Categorias</div><div class="metric-value" id="document-category-count">0</div><div class="metric-note">Organização ativa</div></div>
+            <div class="metric"><div class="metric-label">Versões</div><div class="metric-value" id="document-version-count">0</div><div class="metric-note">Histórico armazenado</div></div>
+          </div>
+          <article class="panel document-library">
+            <div class="document-library-heading">
+              <div>
+                <p class="eyebrow">Biblioteca do colaborador</p>
+                <h2>Arquivos e contratos</h2>
+              </div>
+              <div class="document-filters">
+                <input id="document-search" type="search" placeholder="Buscar documento" aria-label="Buscar documento">
+                <select id="document-category-filter" aria-label="Filtrar por categoria"><option value="">Todas as categorias</option></select>
+              </div>
+            </div>
+            <div id="document-list" class="document-list"></div>
+          </article>
+        </section>
         <section id="configuracoes" class="tab-panel panel placeholder-panel hidden">
           <p class="eyebrow">Sistema</p><h2>Configurações</h2>
           <p class="placeholder-copy">Preferências do sistema e dados salvos no navegador.</p>
@@ -224,6 +256,32 @@
         <div class="dialog-heading"><div><p class="eyebrow">Dossiê do colaborador</p><h2 id="record-title">Novo registro</h2></div><button type="button" class="icon-button" id="close-record" aria-label="Fechar">×</button></div>
         <div id="record-fields" class="form-grid"></div>
         <div class="dialog-actions"><button type="button" class="button secondary" id="cancel-record">Cancelar</button><button type="submit" class="button primary">Adicionar registro</button></div>
+      </form>
+    </dialog>
+    <dialog id="document-dialog">
+      <form id="document-form">
+        <div class="dialog-heading">
+          <div><p class="eyebrow">Gestão de documentos</p><h2 id="document-dialog-title">Fazer upload</h2></div>
+          <button type="button" class="icon-button" id="close-document" aria-label="Fechar">×</button>
+        </div>
+        <div class="form-grid">
+          <label class="full-width">Arquivo<input required id="document-file" type="file"></label>
+          <label>Nome do documento<input required id="document-title" type="text" placeholder="Ex.: Contrato de trabalho"></label>
+          <label>Categoria<select required id="document-category"><option>Documentos pessoais</option><option>Contratos</option><option>Benefícios</option><option>Treinamentos</option><option>Saúde ocupacional</option><option>Outros</option></select></label>
+          <label class="full-width">Observações<textarea id="document-notes" rows="3" placeholder="Informações adicionais sobre o arquivo"></textarea></label>
+        </div>
+        <p class="muted document-upload-note">A nova versão será adicionada ao histórico sem apagar as versões anteriores.</p>
+        <div class="dialog-actions"><button type="button" class="button secondary" id="cancel-document">Cancelar</button><button type="submit" class="button primary">Salvar documento</button></div>
+      </form>
+    </dialog>
+    <dialog id="version-dialog">
+      <form method="dialog">
+        <div class="dialog-heading">
+          <div><p class="eyebrow">Histórico de versões</p><h2 id="version-dialog-title">Versões do documento</h2></div>
+          <button type="button" class="icon-button" id="close-version" aria-label="Fechar">×</button>
+        </div>
+        <div id="version-list" class="version-list"></div>
+        <div class="dialog-actions"><button type="button" class="button secondary" id="cancel-version">Fechar</button></div>
       </form>
     </dialog>
     <script src="app.js"></script>
