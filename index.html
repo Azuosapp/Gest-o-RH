@@ -15,17 +15,22 @@
         <nav class="nav">
           <a class="nav-item" href="#dashboard" data-tab="dashboard"><span class="nav-icon">⌂</span>Início</a>
           <a class="nav-item" href="#candidatos" data-tab="candidatos"><span class="nav-icon">▦</span>Gestão de currículos</a>
-          <div class="nav-group">
-            <a class="nav-item active" href="#dossie" data-tab="dossie"><span class="nav-icon">▥</span>Dossiê do colaborador</a>
+          <div class="nav-group nav-talent-group">
+            <button type="button" class="nav-item nav-group-toggle" id="talent-menu-toggle" aria-expanded="true"><span class="nav-icon">▥</span><span>Gestão de Talentos</span><span class="nav-chevron">⌃</span></button>
             <div class="nav-subitems">
-              <a class="nav-item nav-subitem" href="#colaboradores" data-tab="colaboradores"><span class="nav-icon">☷</span>Lista de colaboradores</a>
+              <a class="nav-item nav-subitem" href="#colaboradores" data-tab="colaboradores"><span class="nav-icon">☷</span>Colaboradores</a>
+              <a class="nav-item nav-subitem" href="#ferias" data-tab="ferias"><span class="nav-icon">▧</span>Gestão de férias</a>
             </div>
           </div>
-          <a class="nav-item" href="#ferias" data-tab="ferias"><span class="nav-icon">▧</span>Gestão de férias</a>
         </nav>
         <div class="nav-section-label">Sistema</div>
         <nav class="nav">
-          <a class="nav-item" href="#configuracoes" data-tab="configuracoes"><span class="nav-icon">⚙</span>Configurações</a>
+          <div class="nav-group nav-settings-group">
+            <button type="button" class="nav-item nav-group-toggle" id="settings-menu-toggle" aria-expanded="true"><span class="nav-icon">⚙</span><span>Configurações</span><span class="nav-chevron">⌃</span></button>
+            <div class="nav-subitems">
+              <a class="nav-item nav-subitem" href="#cadastro-configuracoes" data-tab="cadastro-configuracoes"><span class="nav-icon">▤</span>Cadastro</a>
+            </div>
+          </div>
         </nav>
         <div class="sidebar-footer">
           <div class="user-card"><div class="user-avatar">RS</div><div><strong>RH Grupo Souza</strong><span>Administrador</span></div></div>
@@ -149,42 +154,83 @@
         </section>
         <section id="dossie" class="tab-panel hidden">
           <div class="dossier-toolbar">
-            <div><p class="eyebrow">Gestão de pessoas</p><h2>Dossiê do colaborador</h2><p class="muted">Cadastre, edite e acompanhe os colaboradores em um só lugar.</p></div>
-            <div class="dossier-actions"><input id="employee-search" type="search" placeholder="Buscar colaborador" aria-label="Buscar colaborador"><select id="employee-status-filter" aria-label="Filtrar colaborador por status"><option value="">Todos os status</option></select><select id="employee-department-filter" aria-label="Filtrar colaborador por departamento"><option value="">Todos os departamentos</option></select><select id="employee-picker" aria-label="Selecionar colaborador"></select><button type="button" class="button secondary" id="new-employee">+ Novo</button><button type="button" class="button primary" id="save-employee">Salvar cadastro</button></div>
+            <div><p class="eyebrow">Gestão de Talentos</p><h2>Cadastro de colaboradores</h2><p class="muted">Cadastre, edite e acompanhe os colaboradores em um só lugar.</p></div>
+            <div class="dossier-actions"><input class="dossier-navigation-control" id="employee-search" type="search" placeholder="Buscar colaborador" aria-label="Buscar colaborador"><select class="dossier-navigation-control" id="employee-status-filter" aria-label="Filtrar colaborador por status"><option value="">Todos os status</option></select><select class="dossier-navigation-control" id="employee-department-filter" aria-label="Filtrar colaborador por departamento"><option value="">Todos os departamentos</option></select><select class="dossier-navigation-control" id="employee-picker" aria-label="Selecionar colaborador"></select><button type="button" class="button secondary dossier-navigation-control" id="new-employee">+ Novo</button><button type="button" class="button primary" id="save-employee">Salvar cadastro</button></div>
           </div>
           <form id="employee-form">
             <input type="hidden" id="employee-id">
             <div class="dossier-grid">
               <article class="panel dossier-card dossier-wide">
-                <div class="panel-heading"><div><p class="eyebrow">Identificação</p><h2>Dados pessoais e profissionais</h2></div></div>
+                <div class="panel-heading">
+                  <div><p class="eyebrow">Identificação</p><h2>Dados pessoais e profissionais</h2></div>
+                  <label class="check-field heading-check"><input id="employee-disability" type="checkbox">Pessoa com deficiência</label>
+                </div>
                 <div class="form-grid">
                   <label class="required-field">Nome completo<input required id="employee-name"></label>
                   <label>CPF<input id="employee-cpf" placeholder="000.000.000-00"></label>
-                  <label>Data de nascimento<input id="employee-birth" type="date"></label>
-                  <label>E-mail<input id="employee-email" type="email"></label>
-                  <label>Telefone<input id="employee-phone"></label>
-                  <label>Estado civil<input id="employee-marital"></label>
+                  <label class="required-field">Data de nascimento<input required id="employee-birth" type="date"></label>
+                  <label class="required-field">Gênero<select required id="employee-gender"><option value="">Pesquisar</option><option>Feminino</option><option>Masculino</option><option>Não binário</option><option>Prefiro não informar</option></select></label>
+                  <label>Saudação<select id="employee-salutation"><option value="">Pesquisar</option><option>Ela/dela</option><option>Ele/dele</option><option>Elu/delu</option><option>Prefiro não informar</option></select></label>
+                  <label>Raça / Etnia<select id="employee-ethnicity"><option value="">Pesquisar</option><option>Amarela</option><option>Branca</option><option>Indígena</option><option>Parda</option><option>Preta</option><option>Prefiro não informar</option></select></label>
+                  <label>Estado civil<select id="employee-marital"><option value="">Pesquisar</option><option>Solteiro(a)</option><option>Casado(a)</option><option>Divorciado(a)</option><option>Viúvo(a)</option><option>União estável</option></select></label>
+                  <label class="required-field">Escolaridade<select required id="employee-education"><option value="">Pesquisar</option><option>Ensino fundamental incompleto</option><option>Ensino fundamental completo</option><option>Ensino médio incompleto</option><option>Ensino médio completo</option><option>Superior incompleto</option><option>Superior completo</option><option>Pós-graduação</option><option>Mestrado</option><option>Doutorado</option></select></label>
+                  <label>Curso<input id="employee-course"></label>
+                  <label>Tipo de deficiência<input id="employee-disability-type"></label>
+                  <label>Nacionalidade<input id="employee-nationality"></label>
                   <label>Naturalidade<input id="employee-birthplace"></label>
-                  <label>Escolaridade<input id="employee-education"></label>
+                  <label>Nome do pai<input id="employee-father-name"></label>
+                  <label>Nome da mãe<input id="employee-mother-name"></label>
                 </div>
               </article>
-              <article class="panel dossier-card">
-                <div class="panel-heading"><div><p class="eyebrow">Vínculo</p><h2>Dados profissionais</h2></div></div>
-                <div class="form-grid single">
-                  <label class="required-field">Cargo<input required id="employee-role"></label>
-                  <label class="required-field">Departamento<input required id="employee-department"></label>
-                  <label>Gestor imediato<input id="employee-manager"></label>
-                  <label>Unidade<input id="employee-unit"></label>
-                  <label>Data de admissão<input id="employee-admission" type="date"></label>
-                  <label>Tipo de contrato<select id="employee-contract"><option>CLT</option><option>Estágio</option><option>PJ</option><option>Temporário</option></select></label>
+              <article class="panel dossier-card dossier-wide">
+                <div class="panel-heading"><div><p class="eyebrow">Endereço</p><h2>Endereço residencial</h2></div></div>
+                <div class="form-grid address-grid">
+                  <label class="address-country">País<select id="employee-addressCountry"><option value="">Escolha o país</option></select></label>
+                  <label class="address-cep">CEP<input id="employee-addressCep" inputmode="numeric" maxlength="9" placeholder="00000-000"><small id="employee-address-status" class="address-status" aria-live="polite"></small></label>
+                  <label class="address-street">Logradouro<input id="employee-addressStreet"></label>
+                  <label class="address-number">Número<input id="employee-addressNumber"></label>
+                  <label class="address-neighborhood">Bairro<input id="employee-addressNeighborhood"></label>
+                  <label class="address-city">Cidade<input id="employee-addressCity"></label>
+                  <label class="address-state">Estado<select id="employee-addressState"><option value="">Escolha o estado</option><option>AC</option><option>AL</option><option>AP</option><option>AM</option><option>BA</option><option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option><option>MT</option><option>MS</option><option>MG</option><option>PA</option><option>PB</option><option>PR</option><option>PE</option><option>PI</option><option>RJ</option><option>RN</option><option>RS</option><option>RO</option><option>RR</option><option>SC</option><option>SP</option><option>SE</option><option>TO</option></select></label>
+                  <label class="address-complement">Complemento<input id="employee-addressComplement"></label>
                 </div>
               </article>
-              <article class="panel dossier-card">
-                <div class="panel-heading"><div><p class="eyebrow">Remuneração</p><h2>Salário e benefícios</h2></div></div>
-                <div class="form-grid single">
-                  <label>Salário atual<input id="employee-salary" placeholder="R$ 0,00"></label>
-                  <label>Benefícios<textarea id="employee-benefits" rows="4" placeholder="Vale-alimentação, plano de saúde..."></textarea></label>
-                  <label>Status<select id="employee-status"><option>Ativo</option><option>Férias</option><option>Afastado</option><option>Desligado</option></select></label>
+              <article class="panel dossier-card dossier-wide contacts-card">
+                <div class="panel-heading"><div><h2>Contatos</h2></div></div>
+                <div class="contacts-grid">
+                  <label>Celular
+                    <span class="phone-input"><span class="phone-country-picker" data-phone-country="employee-cellphoneCountry"><button type="button" class="phone-country-button" aria-haspopup="listbox" aria-expanded="false"><span class="phone-flag">🇧🇷</span><span class="phone-country-code">+55</span><span class="phone-chevron">▾</span></button><span class="phone-country-menu" role="listbox"><input class="phone-country-search" type="search" placeholder="Buscar país..." aria-label="Buscar país"></span></span><input id="employee-cellphone" inputmode="tel" placeholder="00 00000-0000"></span>
+                  </label>
+                  <label>Telefone
+                    <span class="phone-input"><span class="phone-country-picker" data-phone-country="employee-telephoneCountry"><button type="button" class="phone-country-button" aria-haspopup="listbox" aria-expanded="false"><span class="phone-flag">🇧🇷</span><span class="phone-country-code">+55</span><span class="phone-chevron">▾</span></button><span class="phone-country-menu" role="listbox"><input class="phone-country-search" type="search" placeholder="Buscar país..." aria-label="Buscar país"></span></span><input id="employee-telephone" inputmode="tel" placeholder="00 00000-0000"></span>
+                  </label>
+                  <label>Telefone de Emergência
+                    <span class="phone-input"><span class="phone-country-picker" data-phone-country="employee-emergencyPhoneCountry"><button type="button" class="phone-country-button" aria-haspopup="listbox" aria-expanded="false"><span class="phone-flag">🇧🇷</span><span class="phone-country-code">+55</span><span class="phone-chevron">▾</span></button><span class="phone-country-menu" role="listbox"><input class="phone-country-search" type="search" placeholder="Buscar país..." aria-label="Buscar país"></span></span><input id="employee-emergencyPhone" inputmode="tel" placeholder="00 00000-0000"></span>
+                  </label>
+                  <label class="contact-email">Email Pessoal<input id="employee-personalEmail" type="email"></label>
+                  <label class="contact-email">Email Empresarial<input id="employee-businessEmail" type="email"></label>
+                </div>
+              </article>
+              <article class="panel dossier-card dossier-wide contract-card">
+                <div class="panel-heading"><div><h2>Dados contratuais</h2></div></div>
+                <div class="contract-grid">
+                  <label class="required-field contract-department">Departamento<input required id="employee-department" list="department-options" placeholder="Pesquisar"></label>
+                  <label class="required-field contract-role">Cargo<input required id="employee-role" list="role-options" placeholder="Pesquisar"></label>
+                  <label class="contract-type">Tipo de contrato<select id="employee-contract"><option>CLT</option><option>Estágio</option><option>PJ</option><option>Temporário</option></select></label>
+                  <label class="contract-level">Unidade<select id="employee-level"><option value="">Pesquisar</option><option>Júnior</option><option>Pleno</option><option>Sênior</option></select></label>
+                  <label class="contract-shift">Turno<input id="employee-shift"></label>
+                  <label class="contract-currency">Moeda<select id="employee-currency"><option>BRL</option><option>USD</option><option>EUR</option></select></label>
+                  <label class="contract-salary">Salário<input id="employee-salary" placeholder="0,00"></label>
+                  <label class="required-field contract-admission">Data de admissão<input required id="employee-admission" type="date"></label>
+                  <label class="contract-probation">Período de experiência<input id="employee-probation" placeholder="Período em dias"></label>
+                  <label class="contract-registration">Matrícula<input id="employee-registration"></label>
+                  <label class="contract-manager">Superior direto<input id="employee-manager" list="manager-options" placeholder="Superior direto"></label>
+                  <label class="required-field contract-hierarchy">Grau hierárquico<select id="employee-hierarchy"><option value="">Pesquisar</option><option>Júnior</option><option>Pleno</option><option>Sênior</option><option>Coordenação</option><option>Gerência</option><option>Diretoria</option></select></label>
+                  <label class="contract-date">Data do contrato<input id="employee-contractDate" type="date"></label>
+                  <label class="contract-duration">Duração do contrato<input id="employee-contractDuration"></label>
+                  <label class="contract-expiration">Vencimento do contrato<input id="employee-contractExpiration" type="date"></label>
+                  <label class="contract-status">Status<select id="employee-status"><option>Ativo</option><option>Férias</option><option>Afastado</option><option>Desligado</option></select></label>
+                  <label class="contract-benefits">Benefícios<textarea id="employee-benefits" rows="2" placeholder="Vale-alimentação, plano de saúde..."></textarea></label>
                 </div>
               </article>
               <article class="panel dossier-card dossier-wide">
@@ -212,7 +258,7 @@
         </section>
         <section id="colaboradores" class="tab-panel hidden">
           <div class="dossier-toolbar">
-            <div><p class="eyebrow">Dossiê do colaborador</p><h2>Lista de colaboradores</h2><p class="muted">Consulte os cadastros e abra o dossiê completo de cada colaborador.</p></div>
+            <div><p class="eyebrow">Gestão de Talentos</p><h2>Colaboradores</h2><p class="muted">Consulte os cadastros e abra o dossiê completo de cada colaborador.</p></div>
             <button type="button" class="button primary" id="new-employee-from-list">+ Novo colaborador</button>
           </div>
           <div class="filters employee-list-filters">
@@ -222,7 +268,17 @@
           </div>
           <article class="panel employee-directory">
             <div class="panel-heading"><div><p class="eyebrow">Gestão de talentos</p><h2>Colaboradores</h2></div><span class="muted" id="employee-list-count"></span></div>
-            <div id="employee-list" class="employee-list"></div>
+            <div class="employee-table" role="table" aria-label="Lista de colaboradores">
+              <div class="employee-table-header" role="row">
+                <span>Nome <b class="sort-indicator">▲</b></span>
+                <span>Cargo</span>
+                <span>Departamento</span>
+                <span>Data de admissão</span>
+                <span>Nível</span>
+                <span>Status</span>
+              </div>
+              <div id="employee-list" class="employee-list"></div>
+            </div>
           </article>
         </section>
         <section id="relatorios" class="tab-panel panel placeholder-panel hidden">
@@ -297,6 +353,36 @@
           <p class="placeholder-copy">Preferências do sistema e dados salvos no navegador.</p>
           <button class="button secondary" id="clear-data">Restaurar dados de demonstração</button>
         </section>
+        <section id="cadastro-configuracoes" class="tab-panel panel placeholder-panel hidden">
+          <p class="eyebrow">Configurações</p><h2>Cadastro</h2>
+          <p class="placeholder-copy">Gerencie as opções utilizadas nos cadastros de colaboradores, contratos e demais rotinas do sistema.</p>
+          <div class="settings-cards">
+            <article class="settings-card settings-list-card settings-navigation-card" data-settings-page="novo-departamento" role="button" tabindex="0">
+              <div><strong>Departamentos</strong><span>Cadastre as opções exibidas no cadastro de colaboradores.</span></div>
+            </article>
+            <article class="settings-card settings-list-card settings-navigation-card" data-settings-page="novo-cargo" role="button" tabindex="0">
+              <div><strong>Cargos</strong><span>Organize os cargos disponíveis para seleção.</span></div>
+            </article>
+            <article class="settings-card settings-list-card settings-navigation-card" data-settings-page="novo-superior" role="button" tabindex="0">
+              <div><strong>Superiores diretos</strong><span>Cadastre os responsáveis que poderão ser vinculados.</span></div>
+            </article>
+          </div>
+        </section>
+        <section id="novo-departamento" class="tab-panel panel placeholder-panel settings-entry-panel hidden">
+          <div class="settings-page-heading"><div><h2>Departamentos</h2></div><div class="settings-page-actions"><button type="button" class="button secondary" data-settings-back>Voltar</button></div></div>
+          <div class="settings-list settings-page-list" id="departments-list"></div>
+        </section>
+        <section id="novo-cargo" class="tab-panel panel placeholder-panel settings-entry-panel hidden">
+          <div class="settings-page-heading"><div><h2>Cargos</h2></div><div class="settings-page-actions"><button type="button" class="button secondary" data-settings-back>Voltar</button></div></div>
+          <div class="settings-list settings-page-list" id="roles-list"></div>
+        </section>
+        <section id="novo-superior" class="tab-panel panel placeholder-panel settings-entry-panel hidden">
+          <div class="settings-page-heading"><div><h2>Superiores diretos</h2></div><div class="settings-page-actions"><button type="button" class="button secondary" data-settings-back>Voltar</button></div></div>
+          <div class="settings-list settings-page-list" id="managers-list"></div>
+        </section>
+        <datalist id="department-options"></datalist>
+        <datalist id="role-options"></datalist>
+        <datalist id="manager-options"></datalist>
       </main>
     </div>
 
@@ -382,6 +468,13 @@
           <label class="full-width">Observações<textarea id="vacation-notes" rows="3"></textarea></label>
         </div>
         <div class="dialog-actions"><button type="button" class="button secondary" id="cancel-vacation">Cancelar</button><button type="submit" class="button primary">Salvar período</button></div>
+      </form>
+    </dialog>
+    <dialog id="employee-success-dialog" class="success-dialog">
+      <form>
+        <div class="success-dialog-icon" aria-hidden="true">✓</div>
+        <h2>Colaborador salvo com sucesso!</h2>
+        <div class="dialog-actions"><button type="button" class="button primary" id="employee-success-continue">Continuar</button></div>
       </form>
     </dialog>
     <script src="app.js"></script>

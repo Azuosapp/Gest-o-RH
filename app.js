@@ -35,22 +35,179 @@ const initialCandidates = [
 let candidates = JSON.parse(localStorage.getItem("candidates")) || initialCandidates;
 const initialEmployees = [{
   id: 1, name: "Exemplo de colaborador", cpf: "", birth: "", email: "", phone: "", marital: "", birthplace: "", education: "",
-  role: "Analista de Departamento Pessoal", department: "Recursos Humanos", manager: "Gestor responsável", unit: "Matriz",
+  role: "Analista de Departamento Pessoal", department: "Recursos Humanos", manager: "Gestor responsável", level: "Pleno",
   admission: "", contract: "CLT", salary: "R$ 0,00", benefits: "", status: "Ativo",
   documents: [], documentLibrary: [], vacationPeriods: [], movements: [], trainings: [], feedbacks: [], medical: []
 }];
-let employees = JSON.parse(localStorage.getItem("employees")) || initialEmployees;
+let employees = (JSON.parse(localStorage.getItem("employees")) || initialEmployees)
+  .filter((employee) => employee.name !== "Novo colaborador");
+localStorage.setItem("employees", JSON.stringify(employees));
+const initialSettingsLists = {
+  departments: ["Recursos Humanos"],
+  roles: ["Analista de Departamento Pessoal"],
+  managers: ["Gestor responsável"]
+};
+let settingsLists = JSON.parse(localStorage.getItem("settingsLists")) || initialSettingsLists;
+Object.keys(initialSettingsLists).forEach((key) => {
+  if (!Array.isArray(settingsLists[key])) settingsLists[key] = initialSettingsLists[key];
+});
 employees.forEach((employee) => {
+  if (!employee.level && employee.unit) employee.level = employee.unit;
   if (!Array.isArray(employee.documentLibrary)) employee.documentLibrary = [];
   if (!Array.isArray(employee.vacationPeriods)) employee.vacationPeriods = [];
 });
 const $ = (selector) => document.querySelector(selector);
+let addressLookupRequest = 0;
+
+function setPhoneCountry(inputId, countryCode) {
+  const picker = document.querySelector(`[data-phone-country="${inputId}"]`);
+  if (!picker) return;
+  const option = picker.querySelector(`[data-country-code="${countryCode}"]`) || picker.querySelector('[data-country-code="BR"]');
+  picker.dataset.selectedCountry = option.dataset.countryCode;
+  picker.querySelector(".phone-flag").textContent = option.querySelector(".phone-flag").textContent;
+  picker.querySelector(".phone-country-code").textContent = option.dataset.dialCode;
+  picker.querySelector(".phone-country-button").setAttribute("aria-label", `País selecionado: ${option.dataset.countryCode} ${option.dataset.dialCode}`);
+  picker.querySelectorAll(".phone-country-option").forEach((item) => item.classList.toggle("selected", item === option));
+}
+
+function selectedPhoneCountry(inputId) {
+  return document.querySelector(`[data-phone-country="${inputId}"]`)?.dataset.selectedCountry || "BR";
+}
+
+function refreshSettingsLists() {
+  const listMap = { departments: "department-options", roles: "role-options", managers: "manager-options" };
+  Object.entries(listMap).forEach(([key, datalistId]) => {
+    $(`#${datalistId}`).innerHTML = settingsLists[key].map((value) => `<option value="${escapeHtml(value)}"></option>`).join("");
+    const list = $(`#${key}-list`);
+    list.innerHTML = settingsLists[key].length
+      ? settingsLists[key].map((value) => `<div class="settings-list-row"><span>${escapeHtml(value)}</span><div class="settings-list-actions"><button type="button" class="settings-list-edit" data-edit-setting="${key}" data-setting-value="${escapeHtml(value)}">Editar</button><button type="button" class="settings-list-remove" data-remove-setting="${key}" data-setting-value="${escapeHtml(value)}">Remover</button></div></div>`).join("")
+      : `<div class="settings-list-empty">Nenhum item cadastrado.</div>`;
+  });
+}
+
+function addSettingItem(key, value) {
+  const normalized = value.trim();
+  if (!normalized) return;
+  if (!settingsLists[key].some((item) => item.toLocaleLowerCase("pt-BR") === normalized.toLocaleLowerCase("pt-BR"))) {
+    settingsLists[key].push(normalized);
+    settingsLists[key].sort((a, b) => a.localeCompare(b, "pt-BR"));
+    localStorage.setItem("settingsLists", JSON.stringify(settingsLists));
+    refreshSettingsLists();
+  }
+}
+
+function removeSettingItem(key, value) {
+  settingsLists[key] = settingsLists[key].filter((item) => item !== value);
+  localStorage.setItem("settingsLists", JSON.stringify(settingsLists));
+  refreshSettingsLists();
+}
+
+function editSettingItem(key, previousValue, nextValue) {
+  const normalized = nextValue.trim();
+  if (!normalized) return;
+  const duplicate = settingsLists[key].some((item) => item !== previousValue && item.toLocaleLowerCase("pt-BR") === normalized.toLocaleLowerCase("pt-BR"));
+  if (duplicate) return;
+  const index = settingsLists[key].indexOf(previousValue);
+  if (index === -1) return;
+  settingsLists[key][index] = normalized;
+  settingsLists[key].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  localStorage.setItem("settingsLists", JSON.stringify(settingsLists));
+  refreshSettingsLists();
+}
+
+function populateCountryOptions() {
+  const countrySelect = $("#employee-addressCountry");
+  const displayNames = new Intl.DisplayNames(["pt-BR"], { type: "region" });
+  const countries = [];
+  for (let first = 65; first <= 90; first += 1) {
+    for (let second = 65; second <= 90; second += 1) {
+      const code = String.fromCharCode(first, second);
+      const name = displayNames.of(code);
+      if (name && name !== code && !countries.some((country) => country.name === name)) countries.push({ code, name });
+    }
+  }
+  countries.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  countrySelect.innerHTML = `<option value="">Escolha o país</option>${countries.map((country) => `<option value="${escapeHtml(country.name)}">${escapeHtml(country.name)}</option>`).join("")}`;
+  const dialCodes = {
+    BR: "+55", US: "+1", CA: "+1", MX: "+52", AR: "+54", CL: "+56", CO: "+57", PE: "+51",
+    UY: "+598", PY: "+595", BO: "+591", EC: "+593", VE: "+58", GB: "+44", PT: "+351",
+    ES: "+34", FR: "+33", DE: "+49", IT: "+39", IE: "+353", NL: "+31", BE: "+32", CH: "+41",
+    AT: "+43", AU: "+61", NZ: "+64", JP: "+81", CN: "+86", IN: "+91", KR: "+82", RU: "+7",
+    ZA: "+27", AO: "+244", MZ: "+258", CV: "+238", EG: "+20", IL: "+972", AE: "+971", TR: "+90"
+  };
+  const flagFor = (code) => code.replace(/[A-Z]/g, (letter) => String.fromCodePoint(letter.charCodeAt(0) + 127397));
+  document.querySelectorAll(".phone-country-picker").forEach((picker) => {
+    const menu = picker.querySelector(".phone-country-menu");
+    const search = menu.querySelector(".phone-country-search");
+    const renderCountries = (query = "") => {
+      const normalizedQuery = query.trim().toLocaleLowerCase("pt-BR");
+      const filteredCountries = countries.filter((country) => `${country.code} ${country.name} ${dialCodes[country.code] || ""}`.toLocaleLowerCase("pt-BR").includes(normalizedQuery));
+      menu.querySelectorAll(".phone-country-option").forEach((option) => option.remove());
+      menu.insertAdjacentHTML("beforeend", filteredCountries.map((country) => `<button type="button" class="phone-country-option" role="option" data-country-code="${country.code}" data-dial-code="${dialCodes[country.code] || "+"}"><span class="phone-flag">${flagFor(country.code)}</span><span>${escapeHtml(country.code)} ${escapeHtml(country.name)} (${dialCodes[country.code] || "código"})</span></button>`).join(""));
+      menu.querySelectorAll(".phone-country-option").forEach((option) => {
+        option.addEventListener("click", () => {
+          setPhoneCountry(picker.dataset.phoneCountry, option.dataset.countryCode);
+          picker.classList.remove("open");
+          picker.querySelector(".phone-country-button").setAttribute("aria-expanded", "false");
+          search.value = "";
+        });
+      });
+    };
+    search.addEventListener("input", () => renderCountries(search.value));
+    search.addEventListener("click", (event) => event.stopPropagation());
+    search.addEventListener("keydown", (event) => event.stopPropagation());
+    renderCountries();
+    picker.dataset.selectedCountry = "BR";
+    picker.querySelector(".phone-country-code").textContent = dialCodes.BR;
+    picker.querySelector(".phone-flag").textContent = flagFor("BR");
+    picker.querySelector(".phone-country-button").setAttribute("aria-label", `País selecionado: BR ${dialCodes.BR}`);
+  });
+}
+
+function setAddressLookupStatus(message, isError = false) {
+  const status = $("#employee-address-status");
+  status.textContent = message;
+  status.classList.toggle("error", isError);
+}
+
+async function lookupAddressByCep() {
+  const cepInput = $("#employee-addressCep");
+  const cep = cepInput.value.replace(/\D/g, "");
+  if (cep.length !== 8) return;
+  const requestId = ++addressLookupRequest;
+  setAddressLookupStatus("Consultando CEP...");
+  try {
+    const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+    if (!response.ok) throw new Error(`Consulta de CEP retornou status ${response.status}`);
+    const address = await response.json();
+    if (requestId !== addressLookupRequest) return;
+    if (address.erro) {
+      setAddressLookupStatus("CEP não encontrado.", true);
+      return;
+    }
+    $("#employee-addressStreet").value = address.logradouro || "";
+    $("#employee-addressNeighborhood").value = address.bairro || "";
+    $("#employee-addressCity").value = address.localidade || "";
+    $("#employee-addressState").value = address.uf || "";
+    $("#employee-addressCountry").value = "Brasil";
+    setAddressLookupStatus("Endereço preenchido automaticamente.");
+  } catch (error) {
+    if (requestId !== addressLookupRequest) return;
+    setAddressLookupStatus("Não foi possível consultar o CEP.", true);
+    console.error("Falha ao consultar CEP:", error);
+  }
+}
 
 function activateTab(tabName, subtabName = "") {
   const showDocuments = tabName === "dossie";
+  const showSettingsEntry = ["novo-departamento", "novo-cargo", "novo-superior"].includes(tabName);
+  document.body.classList.toggle("dossier-view", tabName === "dossie");
+  document.body.classList.toggle("employee-list-view", tabName === "colaboradores");
+  document.body.classList.toggle("settings-entry-view", showSettingsEntry);
   document.querySelectorAll(".nav-item[data-tab]").forEach((item) => item.classList.toggle("active", item.dataset.tab === tabName && (item.dataset.subtab || "") === subtabName));
   document.querySelectorAll(".tab-panel").forEach((panel) => panel.classList.toggle("hidden", panel.id !== tabName));
   $("#documentos").classList.toggle("hidden", !showDocuments);
+  if (tabName === "dossie" || tabName === "colaboradores") window.scrollTo(0, 0);
 }
 
 function vacationRecords() {
@@ -104,6 +261,20 @@ document.querySelectorAll(".nav-item[data-tab]").forEach((item) => {
     history.replaceState(null, "", `#${item.dataset.subtab ? "dossie" : item.dataset.tab}`);
     if (item.dataset.subtab) $("#documentos").scrollIntoView({ behavior: "smooth", block: "start" });
   });
+});
+
+$("#talent-menu-toggle").addEventListener("click", () => {
+  const group = $(".nav-talent-group");
+  const expanded = group.classList.toggle("collapsed") === false;
+  $("#talent-menu-toggle").setAttribute("aria-expanded", String(expanded));
+  $("#talent-menu-toggle .nav-chevron").textContent = expanded ? "⌃" : "⌄";
+});
+
+$("#settings-menu-toggle").addEventListener("click", () => {
+  const group = $(".nav-settings-group");
+  const expanded = group.classList.toggle("collapsed") === false;
+  $("#settings-menu-toggle").setAttribute("aria-expanded", String(expanded));
+  $("#settings-menu-toggle .nav-chevron").textContent = expanded ? "⌃" : "⌄";
 });
 
 function uniqueValues(field) {
@@ -362,16 +533,32 @@ function saveDocumentFile(file, document) {
 
 function fillEmployeeForm(employee) {
   if (!employee) return;
+  $("#dossie").classList.add("dossier-editing");
   $("#employee-id").value = employee.id;
-  const fields = ["name", "cpf", "birth", "email", "phone", "marital", "birthplace", "education", "role", "department", "manager", "unit", "admission", "contract", "salary", "benefits", "status"];
+  const fields = ["name", "cpf", "birth", "gender", "salutation", "ethnicity", "marital", "education", "course", "nationality", "birthplace", "role", "department", "manager", "level", "admission", "contract", "salary", "benefits", "status", "shift", "currency", "probation", "registration", "hierarchy", "contractDate", "contractDuration", "contractExpiration", "addressCountry", "addressCep", "addressStreet", "addressNumber", "addressNeighborhood", "addressCity", "addressState", "addressComplement"];
   fields.forEach((field) => { $(`#employee-${field}`).value = employee[field] || ""; });
+  $("#employee-cellphone").value = employee.cellphone || "";
+  $("#employee-telephone").value = employee.telephone || employee.phone || "";
+  $("#employee-emergencyPhone").value = employee.emergencyPhone || "";
+  setPhoneCountry("employee-cellphoneCountry", employee.cellphoneCountry || "BR");
+  setPhoneCountry("employee-telephoneCountry", employee.telephoneCountry || "BR");
+  setPhoneCountry("employee-emergencyPhoneCountry", employee.emergencyPhoneCountry || "BR");
+  $("#employee-personalEmail").value = employee.personalEmail || employee.email || "";
+  $("#employee-businessEmail").value = employee.businessEmail || "";
+  $("#employee-disability-type").value = employee.disabilityType || "";
+  $("#employee-father-name").value = employee.fatherName || "";
+  $("#employee-mother-name").value = employee.motherName || "";
+  $("#employee-disability").checked = Boolean(employee.disability);
   renderEmployeeRecords(employee);
 }
 
 function resetEmployeeForm() {
+  $("#dossie").classList.add("dossier-editing");
   $("#employee-form").reset();
   $("#employee-id").value = "";
+  ["employee-cellphoneCountry", "employee-telephoneCountry", "employee-emergencyPhoneCountry"].forEach((id) => setPhoneCountry(id, "BR"));
   $("#employee-contract").value = "CLT";
+  $("#employee-currency").value = "BRL";
   $("#employee-status").value = "Ativo";
   renderEmployeeRecords({ documents: [], movements: [], trainings: [], feedbacks: [], medical: [] });
 }
@@ -393,7 +580,7 @@ function refreshEmployeePicker() {
   const status = $("#employee-status-filter").value;
   const department = $("#employee-department-filter").value;
   const filtered = employees.filter((employee) => {
-    const values = [employee.name, employee.cpf, employee.email, employee.role, employee.department, employee.unit];
+    const values = [employee.name, employee.cpf, employee.email, employee.role, employee.department, employee.level, employee.unit];
     return (!query || values.some((value) => String(value || "").toLowerCase().includes(query)))
       && (!status || employee.status === status)
       && (!department || employee.department === department);
@@ -411,10 +598,30 @@ function setupEmployeeFilters() {
   $("#employee-department-filter").innerHTML = `<option value="">Todos os departamentos</option>${departments.map((department) => `<option>${escapeHtml(department)}</option>`).join("")}`;
 }
 
-function saveEmployee() {
+function saveEmployee(onSaved) {
   const id = Number($("#employee-id").value);
   const employee = employees.find((item) => item.id === id) || { id, documents: [], documentLibrary: [], vacationPeriods: [], movements: [], trainings: [], feedbacks: [], medical: [] };
-  ["name", "cpf", "birth", "email", "phone", "marital", "birthplace", "education", "role", "department", "manager", "unit", "admission", "contract", "salary", "benefits", "status"].forEach((field) => { employee[field] = $(`#employee-${field}`).value.trim(); });
+  ["name", "cpf", "birth", "gender", "salutation", "ethnicity", "marital", "education", "course", "nationality", "birthplace", "role", "department", "manager", "level", "admission", "contract", "salary", "benefits", "status", "shift", "currency", "probation", "registration", "hierarchy", "contractDate", "contractDuration", "contractExpiration", "addressCountry", "addressCep", "addressStreet", "addressNumber", "addressNeighborhood", "addressCity", "addressState", "addressComplement"].forEach((field) => { employee[field] = $(`#employee-${field}`).value.trim(); });
+  employee.cellphone = $("#employee-cellphone").value.trim();
+  employee.telephone = $("#employee-telephone").value.trim();
+  employee.emergencyPhone = $("#employee-emergencyPhone").value.trim();
+  employee.cellphoneCountry = selectedPhoneCountry("employee-cellphoneCountry");
+  employee.telephoneCountry = selectedPhoneCountry("employee-telephoneCountry");
+  employee.emergencyPhoneCountry = selectedPhoneCountry("employee-emergencyPhoneCountry");
+  employee.personalEmail = $("#employee-personalEmail").value.trim();
+  employee.businessEmail = $("#employee-businessEmail").value.trim();
+  employee.phone = employee.telephone;
+  employee.email = employee.personalEmail;
+  employee.disabilityType = $("#employee-disability-type").value.trim();
+  employee.fatherName = $("#employee-father-name").value.trim();
+  employee.motherName = $("#employee-mother-name").value.trim();
+  employee.disability = $("#employee-disability").checked;
+  persistEmployee(employee, id, onSaved);
+}
+
+function persistEmployee(employee, id, onSaved) {
+  delete employee.unit;
+  delete employee.photo;
   employees = employees.some((item) => item.id === id) ? employees.map((item) => item.id === id ? employee : item) : [...employees, employee];
   localStorage.setItem("employees", JSON.stringify(employees));
   refreshEmployeePicker();
@@ -424,17 +631,13 @@ function saveEmployee() {
   renderEmployeeList();
   resetEmployeeForm();
   $("#employee-picker").value = "";
+  if (onSaved) onSaved();
 }
 
 $("#new-employee").addEventListener("click", () => {
-  const employee = { id: Date.now(), name: "Novo colaborador", documents: [], documentLibrary: [], vacationPeriods: [], movements: [], trainings: [], feedbacks: [], medical: [], contract: "CLT", status: "Ativo" };
-  employees.push(employee);
-  localStorage.setItem("employees", JSON.stringify(employees));
-  refreshEmployeePicker();
-  setupEmployeeFilters();
-  setupEmployeeListFilters();
-  refreshDocumentsEmployeePicker();
-  fillEmployeeForm(employee);
+  resetEmployeeForm();
+  activateTab("dossie");
+  history.replaceState(null, "", "#dossie");
   $("#employee-name").focus();
 });
 
@@ -443,20 +646,23 @@ function renderEmployeeList() {
   const status = $("#employee-list-status-filter").value;
   const department = $("#employee-list-department-filter").value;
   const filtered = employees.filter((employee) => {
-    const values = [employee.name, employee.cpf, employee.role, employee.department, employee.unit, employee.email];
+    const values = [employee.name, employee.cpf, employee.role, employee.department, employee.level, employee.unit, employee.email];
     return (!query || values.some((value) => String(value || "").toLowerCase().includes(query)))
       && (!status || employee.status === status)
       && (!department || employee.department === department);
   });
   $("#employee-list-count").textContent = `${filtered.length} de ${employees.length} colaboradores`;
-  $("#employee-list").innerHTML = filtered.length ? filtered.map((employee) => `<div class="employee-list-row">
-    <div><strong>${escapeHtml(employee.name || "Sem nome")}</strong><span>${escapeHtml(employee.email || "E-mail não informado")}</span></div>
-    <div><span>Cargo</span><strong>${escapeHtml(employee.role || "Não informado")}</strong></div>
-    <div><span>Departamento</span><strong>${escapeHtml(employee.department || "Não informado")}</strong></div>
-    <div><span>Unidade</span><strong>${escapeHtml(employee.unit || "Não informado")}</strong></div>
-    <div><span class="employee-list-status">${escapeHtml(employee.status || "Ativo")}</span></div>
-    <button type="button" class="row-action" data-open-employee="${employee.id}">Opções · Editar</button>
-  </div>`).join("") : `<div class="record-empty">Nenhum colaborador encontrado.</div>`;
+  $("#employee-list").innerHTML = filtered.length ? filtered.map((employee) => {
+    const name = employee.name || "Sem nome";
+    return `<div class="employee-list-row" role="button" tabindex="0" data-open-employee="${employee.id}" aria-label="Abrir edição de ${escapeHtml(name)}">
+      <div class="employee-list-person"><div><strong>${escapeHtml(name)}</strong><span>${escapeHtml(employee.email || "E-mail não informado")}</span></div></div>
+      <div class="employee-list-cell" data-label="Cargo"><strong>${escapeHtml(employee.role || "Não informado")}</strong></div>
+      <div class="employee-list-cell" data-label="Departamento"><strong>${escapeHtml(employee.department || "Não informado")}</strong></div>
+      <div class="employee-list-cell" data-label="Data de admissão"><strong>${formatDate(employee.admission)}</strong></div>
+      <div class="employee-list-cell" data-label="Nível"><strong>${escapeHtml(employee.level || employee.unit || "Não informado")}</strong></div>
+      <div class="employee-list-cell" data-label="Status"><span class="employee-list-status">${escapeHtml(employee.status || "Ativo")}</span></div>
+    </div>`;
+  }).join("") : `<div class="record-empty">Nenhum colaborador encontrado.</div>`;
 }
 
 function setupEmployeeListFilters() {
@@ -473,13 +679,21 @@ $("#new-employee-from-list").addEventListener("click", () => {
 });
 ["#employee-list-search", "#employee-list-status-filter", "#employee-list-department-filter"].forEach((selector) => $(selector).addEventListener("input", renderEmployeeList));
 $("#employee-list").addEventListener("click", (event) => {
-  const employeeId = Number(event.target.dataset.openEmployee);
+  const row = event.target.closest("[data-open-employee]");
+  const employeeId = Number(row?.dataset.openEmployee);
   if (!employeeId) return;
   const employee = employees.find((item) => item.id === employeeId);
   if (!employee) return;
   fillEmployeeForm(employee);
   activateTab("dossie");
   history.replaceState(null, "", "#dossie");
+});
+$("#employee-list").addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  const row = event.target.closest("[data-open-employee]");
+  if (!row) return;
+  event.preventDefault();
+  row.click();
 });
 
 function addEmployeeRecord(field) {
@@ -517,12 +731,35 @@ $("#close-record").addEventListener("click", () => $("#record-dialog").close());
 $("#cancel-record").addEventListener("click", () => $("#record-dialog").close());
 
 $("#employee-picker").addEventListener("change", () => fillEmployeeForm(employees.find((employee) => employee.id === Number($("#employee-picker").value))));
+$("#employee-addressCep").addEventListener("input", (event) => {
+  const digits = event.target.value.replace(/\D/g, "").slice(0, 8);
+  event.target.value = digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits;
+  if (digits.length < 8) setAddressLookupStatus("");
+  if (digits.length === 8) lookupAddressByCep();
+});
+$("#employee-addressCep").addEventListener("blur", lookupAddressByCep);
+["#employee-cellphone", "#employee-telephone", "#employee-emergencyPhone"].forEach((selector) => {
+  $(selector).addEventListener("input", (event) => {
+    const digits = event.target.value.replace(/\D/g, "").slice(0, 11);
+    if (digits.length <= 10) {
+      event.target.value = digits.length > 2 ? `${digits.slice(0, 2)} ${digits.slice(2, 6)}-${digits.slice(6)}` : digits;
+    } else {
+      event.target.value = `${digits.slice(0, 2)} ${digits.slice(2, 7)}-${digits.slice(7)}`;
+    }
+  });
+});
 ["#employee-search", "#employee-status-filter", "#employee-department-filter"].forEach((selector) => $(selector).addEventListener("input", refreshEmployeePicker));
 $("#save-employee").addEventListener("click", (event) => {
   event.preventDefault();
   if (!$("#employee-form").reportValidity()) return;
-  saveEmployee();
-  alert("Cadastro do colaborador salvo. O formulário foi limpo para um novo cadastro.");
+  saveEmployee(() => {
+    $("#employee-success-dialog").showModal();
+  });
+});
+$("#employee-success-continue").addEventListener("click", () => {
+  $("#employee-success-dialog").close();
+  activateTab("colaboradores");
+  history.replaceState(null, "", "#colaboradores");
 });
 ["documents", "movements", "trainings", "feedbacks", "medical"].forEach((field) => $(`#add-${field === "medical" ? "medical" : field.slice(0, -1)}`).addEventListener("click", () => addEmployeeRecord(field)));
 $("#dossie").addEventListener("click", (event) => {
@@ -535,7 +772,7 @@ $("#dossie").addEventListener("click", (event) => {
 
 function refreshDocumentsEmployeePicker() {
   const query = $("#documents-employee-search").value.toLowerCase().trim();
-  const filtered = employees.filter((employee) => [employee.name, employee.role, employee.department, employee.unit].some((value) => String(value || "").toLowerCase().includes(query)));
+  const filtered = employees.filter((employee) => [employee.name, employee.role, employee.department, employee.level, employee.unit].some((value) => String(value || "").toLowerCase().includes(query)));
   $("#documents-employee-picker").innerHTML = filtered.length
     ? filtered.map((employee) => `<option value="${employee.id}">${escapeHtml(employee.name)}</option>`).join("")
     : `<option value="">Nenhum colaborador encontrado</option>`;
@@ -634,6 +871,95 @@ $("#vacation-list").addEventListener("click", (event) => {
 
 setupFilters();
 render();
+populateCountryOptions();
+document.querySelectorAll(".phone-country-button").forEach((button) => {
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const picker = button.closest(".phone-country-picker");
+    const isOpen = picker.classList.toggle("open");
+    button.setAttribute("aria-expanded", String(isOpen));
+    if (isOpen) picker.querySelector(".phone-country-search").focus();
+    document.querySelectorAll(".phone-country-picker.open").forEach((otherPicker) => {
+      if (otherPicker !== picker) {
+        otherPicker.classList.remove("open");
+        otherPicker.querySelector(".phone-country-button").setAttribute("aria-expanded", "false");
+      }
+    });
+  });
+});
+document.addEventListener("click", () => {
+  document.querySelectorAll(".phone-country-picker.open").forEach((picker) => {
+    picker.classList.remove("open");
+    picker.querySelector(".phone-country-button").setAttribute("aria-expanded", "false");
+  });
+});
+document.querySelectorAll("[data-list-form]").forEach((form) => {
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const input = form.querySelector("input");
+    addSettingItem(form.dataset.listForm, input.value);
+    input.value = "";
+    input.focus();
+  });
+});
+document.querySelectorAll("[data-settings-page]").forEach((item) => {
+  const openSettingsPage = () => {
+    const page = item.dataset.settingsPage;
+    activateTab(page);
+    history.replaceState(null, "", `#${page}`);
+    $(`#${page} input`)?.focus();
+  };
+  item.addEventListener("click", openSettingsPage);
+  item.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openSettingsPage();
+    }
+  });
+});
+document.querySelectorAll("[data-settings-back]").forEach((button) => {
+  button.addEventListener("click", () => {
+    activateTab("cadastro-configuracoes");
+    history.replaceState(null, "", "#cadastro-configuracoes");
+  });
+});
+document.querySelectorAll("[data-settings-form]").forEach((form) => {
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const key = form.dataset.settingsForm;
+    const input = form.querySelector("input");
+    addSettingItem(key, input.value);
+    input.value = "";
+    input.focus();
+  });
+});
+document.querySelectorAll(".settings-list").forEach((list) => {
+  list.addEventListener("click", (event) => {
+    const removeButton = event.target.closest("[data-remove-setting]");
+    if (removeButton) {
+      removeSettingItem(removeButton.dataset.removeSetting, removeButton.dataset.settingValue);
+      return;
+    }
+    const editButton = event.target.closest("[data-edit-setting]");
+    if (!editButton) return;
+    const row = editButton.closest(".settings-list-row");
+    const value = editButton.dataset.settingValue;
+    row.innerHTML = `<input class="settings-list-edit-input" value="${escapeHtml(value)}" aria-label="Editar item"><div class="settings-list-actions"><button type="button" class="settings-list-save" data-save-setting="${editButton.dataset.editSetting}" data-setting-value="${escapeHtml(value)}">Salvar</button><button type="button" class="settings-list-cancel">Cancelar</button></div>`;
+    row.querySelector("input").focus();
+    row.querySelector("input").select();
+  });
+});
+document.querySelectorAll(".settings-list").forEach((list) => {
+  list.addEventListener("click", (event) => {
+    const saveButton = event.target.closest("[data-save-setting]");
+    if (saveButton) {
+      editSettingItem(saveButton.dataset.saveSetting, saveButton.dataset.settingValue, saveButton.closest(".settings-list-row").querySelector("input").value);
+      return;
+    }
+    if (event.target.closest(".settings-list-cancel")) refreshSettingsLists();
+  });
+});
+refreshSettingsLists();
 setupEmployeeFilters();
 setupEmployeeListFilters();
 refreshEmployeePicker();
@@ -642,4 +968,7 @@ renderEmployeeList();
 refreshDocumentsEmployeePicker();
 refreshVacationEmployees();
 renderVacations();
-activateTab(location.hash.replace("#", "") || "dashboard");
+const initialTab = location.hash.replace("#", "") || "dashboard";
+const visibleInitialTab = initialTab === "dossie" ? "colaboradores" : initialTab;
+if (visibleInitialTab !== initialTab) history.replaceState(null, "", `#${visibleInitialTab}`);
+activateTab(visibleInitialTab);
