@@ -144,7 +144,7 @@ button { cursor: pointer; }
 .employee-list-filters { grid-template-columns: 2fr 1fr 1fr; }
 .employee-directory { padding: 24px; }
 .employee-table { overflow-x: auto; }
-.employee-table-header, .employee-list-row { display: grid; grid-template-columns: minmax(180px, 1.6fr) minmax(120px, 1.2fr) minmax(110px, 1fr) minmax(120px, .9fr) minmax(70px, .65fr) minmax(70px, .5fr); gap: 18px; align-items: center; }
+.employee-table-header, .employee-list-row { display: grid; grid-template-columns: minmax(150px, 1.7fr) minmax(104px, 1.15fr) minmax(96px, 1fr) minmax(88px, .75fr) minmax(58px, .5fr) minmax(74px, .55fr); gap: 14px; align-items: start; }
 .employee-table-header { color: #5b2d78; border-bottom: 1px solid var(--line); padding: 0 14px 12px; font-size: 12px; font-weight: 800; }
 .sort-indicator { color: #6b328f; font-size: 10px; }
 .employee-list { display: grid; }
@@ -158,8 +158,14 @@ button { cursor: pointer; }
 .employee-list-row strong { color: var(--navy); font-size: 12px; }
 .employee-list-row span { color: var(--muted); font-size: 11px; margin-top: 4px; }
 .employee-list-status { display: inline-flex; width: fit-content; border-radius: 20px; padding: 5px 9px; color: #146f4c; background: #def7eb; font-size: 10px; font-weight: 750; }
-.employee-list-cell { min-width: 0; padding-right: 12px; }
+.employee-list-cell { min-width: 0; padding-right: 8px; }
 .employee-list-cell strong { overflow-wrap: anywhere; }
+/* E-mail longo vira reticencias em vez de ser cortado no meio da palavra. */
+.employee-list-person span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Valores curtos e indivisiveis: nao faz sentido quebrar. */
+.employee-list-cell[data-label="Data de admissão"] strong,
+.employee-list-cell[data-label="Nível"] strong { white-space: nowrap; }
+.employee-list-status { white-space: nowrap; }
 .required-field { position: relative; }
 .required-field::after { content: "*"; color: var(--red); margin-left: 3px; }
 .nav-section-label { color: #7189bc; font-size: 10px; text-transform: uppercase; letter-spacing: .12em; font-weight: 800; padding: 27px 14px 9px; }
@@ -425,6 +431,15 @@ dialog form { padding: 27px; }
   .dossier-grid { grid-template-columns: 1fr; }
   .dossier-wide { grid-column: auto; }
   .document-summary { grid-template-columns: 1fr; }
+  /* Entre 620px e 900px a tabela ficava espremida, com barra de rolagem
+     horizontal e texto quebrando em tres linhas. Nessa faixa o layout de
+     cartoes - que ja existia - le muito melhor. */
+  .employee-table-header { display: none; }
+  .employee-list { gap: 10px; }
+  .employee-list-row { min-width: 0; grid-template-columns: 1fr; gap: 10px; border: 1px solid var(--line); border-radius: 10px; }
+  .employee-list-person span { white-space: normal; overflow-wrap: anywhere; }
+  .employee-list-cell { padding-left: 0; }
+  .employee-list-cell::before { content: attr(data-label); display: block; color: var(--muted); font-size: 10px; margin-bottom: 3px; }
 }
 @media (max-width: 620px) {
   .sidebar { display: none; }
@@ -454,9 +469,4 @@ dialog form { padding: 27px; }
   .documents-actions select, .document-filters input { min-width: 0; }
   .document-card { grid-template-columns: 1fr; }
   .document-card-actions { flex-wrap: wrap; }
-  .employee-table-header { display: none; }
-  .employee-list { gap: 10px; }
-  .employee-list-row { min-width: 0; grid-template-columns: 1fr; gap: 10px; border: 1px solid var(--line); border-radius: 10px; }
-  .employee-list-cell { padding-left: 50px; }
-  .employee-list-cell::before { content: attr(data-label); display: block; color: var(--muted); font-size: 10px; margin-bottom: 3px; }
 }
