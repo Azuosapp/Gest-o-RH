@@ -1,17 +1,30 @@
+/* Identidade visual conforme Azuosapp/azuos-brand (BRAND-GUIDELINES.md).
+   Regra inegociável: amarelo NUNCA sobre branco — só sobre azul ou como
+   ponto/acento pequeno. As variáveis locais abaixo apontam para os tokens
+   oficiais; não defina cor nova aqui, edite no repo azuos-brand. */
+@import url("assets/brand/azuos-tokens.css");
+
 :root {
-  --navy: #0a1a4a;
-  --blue: #1b3a8c;
+  --navy: var(--azuos-blue-900);
+  --blue: var(--azuos-blue-800);
   --blue-light: #e1e6f5;
   --ink: #1e293b;
   --muted: #64748b;
   --line: rgba(27, 58, 140, .1);
   --surface: #ffffff;
   --background: #f0f4ff;
-  --yellow: #f5c518;
+  --yellow: var(--azuos-yellow-500);
   --green: #18865a;
+  --ink-soft: #3c4657;
+  /* Mono só para identificador lido dígito a dígito (telefone, CPF). */
+  --font-data: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   --orange: #c47819;
   --red: #c64646;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--azuos-blue-600); outline-offset: 2px; border-radius: 4px;
 }
 
 * { box-sizing: border-box; }
@@ -19,30 +32,31 @@ body { margin: 0; background: var(--background); color: var(--ink); }
 button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
 .app-shell { display: flex; min-height: 100vh; }
-.sidebar { width: 252px; background: linear-gradient(180deg, #0a1a4a 0%, #0f2460 60%, #1b3a8c 100%); color: #fff; padding: 27px 18px; display: flex; flex-direction: column; }
-.brand { display: flex; align-items: center; padding: 0 10px 42px; }
-.brand img { display: block; width: 176px; height: 58px; }
+.sidebar { width: 252px; background: var(--azuos-blue-900); color: #fff; padding: 27px 18px; display: flex; flex-direction: column; }
+.brand { display: block; padding: 2px 10px 28px; text-decoration: none; }
+.brand img { display: block; width: 150px; height: auto; }
+.brand-sub { display: block; margin-top: 10px; color: #93a6d4; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
 .nav { display: grid; gap: 7px; }
 .nav-item { color: #aebbd2; border-radius: 10px; padding: 12px 14px; text-decoration: none; font-size: 13px; display: flex; align-items: center; gap: 10px; }
 .nav-item.active, .nav-item:hover { color: #fff; background: rgba(255,255,255,.12); }
-.nav-icon { width: 18px; color: #b8c7e6; text-align: center; font-size: 16px; }
+.nav-icon { flex: 0 0 18px; width: 18px; height: 18px; color: #8fa3cc; }
 .nav-item.active .nav-icon { color: var(--yellow); }
 .nav-group { display: grid; gap: 5px; }
 .nav-group-toggle { justify-content: flex-start; width: 100%; border: 0; text-align: left; }
-.nav-group-toggle:hover, .nav-talent-group:not(.collapsed) .nav-group-toggle { color: #5b2d78; background: #d8d4df; }
-.nav-talent-group:not(.collapsed) .nav-group-toggle .nav-icon { color: #6b328f; }
+.nav-group-toggle:hover, .nav-talent-group:not(.collapsed) .nav-group-toggle { color: #fff; background: rgba(255,255,255,.09); }
+.nav-talent-group:not(.collapsed) .nav-group-toggle .nav-icon { color: var(--azuos-yellow-500); }
 .nav-group-toggle > span:nth-child(2) { flex: 1; }
-.nav-chevron { color: #5b2d78; font-size: 16px; line-height: 1; opacity: .8; transition: transform .2s ease; }
+.nav-chevron { color: #8fa3cc; font-size: 16px; line-height: 1; opacity: .8; transition: transform .2s ease; }
 .nav-talent-group:has(.nav-subitem.active) .nav-chevron { transform: rotate(180deg); }
 .nav-subitems { padding-left: 12px; }
 .nav-talent-group.collapsed .nav-subitems { display: none; }
 .nav-talent-group.collapsed .nav-chevron { transform: rotate(-90deg); }
-.nav-settings-group:not(.collapsed) .nav-group-toggle { color: #5b2d78; background: #d8d4df; }
-.nav-settings-group:not(.collapsed) .nav-group-toggle .nav-icon { color: #6b328f; }
+.nav-settings-group:not(.collapsed) .nav-group-toggle { color: #fff; background: rgba(255,255,255,.09); }
+.nav-settings-group:not(.collapsed) .nav-group-toggle .nav-icon { color: var(--azuos-yellow-500); }
 .nav-settings-group.collapsed .nav-subitems { display: none; }
 .nav-settings-group.collapsed .nav-chevron { transform: rotate(-90deg); }
 .nav-subitem { border: 1px solid transparent; border-left: 3px solid rgba(255,255,255,.18); border-radius: 0 10px 10px 0; padding: 10px 12px 10px 18px; font-size: 12px; }
-.nav-subitem.active { color: #d8d4df; background: rgba(255,255,255,.08); border-left-color: #6b328f; box-shadow: none; }
+.nav-subitem.active { color: #fff; background: rgba(255,255,255,.11); border-left-color: var(--azuos-yellow-500); box-shadow: none; }
 .nav-subitem.active .nav-icon { color: var(--yellow); }
 .settings-cards { display: grid; grid-template-columns: 1fr; gap: 14px; margin-top: 24px; }
 .settings-card { display: grid; grid-template-columns: minmax(190px, .7fr) minmax(320px, 1.3fr); align-items: center; gap: 15px 28px; padding: 20px; border: 1px solid var(--line); border-radius: 12px; background: #fbfcff; }
@@ -73,8 +87,8 @@ button { cursor: pointer; }
 .employee-directory { padding: 24px; }
 .employee-table { overflow-x: auto; }
 .employee-table-header, .employee-list-row { display: grid; grid-template-columns: minmax(180px, 1.6fr) minmax(120px, 1.2fr) minmax(110px, 1fr) minmax(120px, .9fr) minmax(70px, .65fr) minmax(70px, .5fr); gap: 18px; align-items: center; }
-.employee-table-header { color: #5b2d78; border-bottom: 1px solid var(--line); padding: 0 14px 12px; font-size: 12px; font-weight: 800; }
-.sort-indicator { color: #6b328f; font-size: 10px; }
+.employee-table-header { color: var(--muted); border-bottom: 1px solid var(--line); padding: 0 14px 12px; font-size: 12px; font-weight: 800; }
+.sort-indicator { color: var(--blue); font-size: 10px; }
 .employee-list { display: grid; }
 .employee-list-row { border-bottom: 1px solid var(--line); padding: 15px 14px; background: var(--surface); }
 .employee-list-row { cursor: pointer; }
@@ -112,15 +126,15 @@ h1, h2 { margin: 0; color: var(--navy); }
 h1 { font-size: 29px; letter-spacing: -.03em; }
 h2 { font-size: 17px; }
 .button { border: 0; border-radius: 8px; padding: 11px 16px; font-weight: 700; font-size: 13px; }
-.button.primary { background: linear-gradient(135deg, #1b3a8c 0%, #2b5ce6 100%); color: #fff; box-shadow: 0 4px 10px #1b3a8c2b; }
-.button.primary:hover { background: #1e52bf; }
+.button.primary { background: var(--azuos-blue-800); color: #fff; }
+.button.primary:hover { background: var(--azuos-blue-900); }
 .button.secondary { color: var(--ink); background: #eef1f6; }
 .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
 .metric, .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 13px; }
 .metric { padding: 19px 20px; }
 .metric-label { color: var(--muted); font-size: 12px; }
-.metric-value { color: var(--navy); font-size: 29px; font-weight: 800; margin-top: 8px; }
-.metric-note { color: var(--green); font-size: 11px; margin-top: 4px; }
+.metric-value { color: var(--navy); font-size: 29px; font-weight: 800; font-variant-numeric: tabular-nums; margin-top: 8px; }
+.metric-note { color: var(--muted); font-size: 11px; margin-top: 4px; }
 .content-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; margin-bottom: 20px; }
 .panel { padding: 24px; }
 .home-hero { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; padding: 25px 28px; margin-bottom: 18px; border-radius: 15px; color: #fff; background: linear-gradient(120deg, #0a1a4a 0%, #1b3a8c 68%, #2b5ce6 100%); }
@@ -170,13 +184,15 @@ h2 { font-size: 17px; }
 .dashboard-filters { grid-template-columns: 2fr 1fr 1fr 1fr; }
 input, select, textarea { width: 100%; border: 1px solid #dce3ee; border-radius: 7px; background: #fff; color: var(--ink); padding: 10px 11px; outline: none; }
 input:focus, select:focus, textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 3px #2864dc1c; }
-.table-wrap { overflow-x: auto; }
+/* position:relative prende o .sr-only aqui dentro; sem isso ele se ancora
+   no documento e cria scroll horizontal na página no mobile. */
+.table-wrap { overflow-x: auto; position: relative; }
 table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 850px; }
 th { text-align: left; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-size: 10px; font-weight: 800; padding: 11px 10px; border-bottom: 1px solid var(--line); }
 td { padding: 14px 10px; border-bottom: 1px solid #edf0f5; vertical-align: middle; }
 tbody tr:hover { background: #fafcff; }
 .candidate-name { color: var(--navy); font-weight: 750; }
-.candidate-phone { color: var(--muted); font-size: 11px; margin-top: 4px; }
+.candidate-phone { color: var(--muted); font-family: var(--font-data); font-size: 11px; margin-top: 4px; }
 .badge { display: inline-flex; padding: 5px 8px; border-radius: 20px; font-size: 10px; font-weight: 750; white-space: nowrap; }
 .badge.waiting { color: #91610f; background: #fff4d8; }
 .badge.approved { color: #146f4c; background: #def7eb; }
@@ -184,7 +200,10 @@ tbody tr:hover { background: #fafcff; }
 .badge.hired { color: #2755a8; background: #e6efff; }
 .row-action { border: 0; background: transparent; color: var(--blue); font-weight: 700; font-size: 11px; }
 .empty-state { text-align: center; color: var(--muted); padding: 45px; }
-.hidden { display: none; }
+/* !important: regras de layout declaradas depois no arquivo (ex.: o display:flex
+   do estado vazio com o Zuzu) têm a mesma especificidade e venceriam por ordem,
+   deixando o bloco visível junto com a lista cheia. */
+.hidden { display: none !important; }
 .placeholder-panel { min-height: 260px; }
 .placeholder-copy { color: var(--muted); max-width: 560px; line-height: 1.6; margin: 12px 0 22px; }
 .dossier-toolbar { display: flex; justify-content: space-between; align-items: end; gap: 20px; margin-bottom: 22px; }
@@ -353,3 +372,45 @@ dialog form { padding: 27px; }
   .employee-list-cell { padding-left: 50px; }
   .employee-list-cell::before { content: attr(data-label); display: block; color: var(--muted); font-size: 10px; margin-bottom: 3px; }
 }
+
+/* ===========================================================================
+   Zuzu nos estados vazios. Só onde a tela vazia é uma pergunta de verdade:
+   "cadê?" na busca sem resultado e "nada aqui ainda" na biblioteca do
+   colaborador. Os demais blocos vazios seguem sem mascote — vários Zuzus
+   empilhados numa tela só viram ruído.
+   ======================================================================== */
+.empty-state, #document-list .record-empty {
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+}
+.empty-state::before, #document-list .record-empty::before {
+  content: "";
+  width: 84px; height: 84px;
+  background: center / contain no-repeat url("assets/zuzu/zuzu-lupa.png");
+}
+#document-list .record-empty::before {
+  width: 68px; height: 68px;
+  background-image: url("assets/zuzu/zuzu-lendo.png");
+}
+
+/* ===========================================================================
+   Trilha de fases. O status do candidato não é um rótulo solto: é uma posição
+   numa sequência real (Triagem → 1ª fase → 2ª fase → Contratação). A trilha
+   mostra até onde a pessoa chegou antes de sair — quem caiu na triagem e quem
+   chegou à 2ª fase têm badges parecidos e históricos muito diferentes.
+   O último segmento é o amarelo da marca: o ponto da logo Azuos na contratação.
+   ======================================================================== */
+.phase { display: flex; gap: 3px; margin-top: 6px; width: 104px; }
+.phase-step { flex: 1; height: 4px; border-radius: 2px; background: var(--azuos-gray-300); }
+.phase-step.done  { background: var(--azuos-blue-600); }
+.phase-step.out   { background: var(--red); }
+.phase-step.hired { background: var(--azuos-yellow-500); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+/* Formulário de inclusão nas telas de cadastro (departamentos, cargos,
+   superiores). O handler já existia no app.js; faltava o markup. */
+.settings-page-form { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; }
+.settings-page-form input { flex: 1; min-width: 0; }
+.settings-page-form .button { flex: 0 0 auto; white-space: nowrap; }
