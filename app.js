@@ -45,16 +45,19 @@ employees.forEach((employee) => {
 });
 const $ = (selector) => document.querySelector(selector);
 
-function activateTab(tabName) {
-  document.querySelectorAll(".nav-item[data-tab]").forEach((item) => item.classList.toggle("active", item.dataset.tab === tabName));
+function activateTab(tabName, subtabName = "") {
+  const showDocuments = tabName === "dossie";
+  document.querySelectorAll(".nav-item[data-tab]").forEach((item) => item.classList.toggle("active", item.dataset.tab === tabName && (item.dataset.subtab || "") === subtabName));
   document.querySelectorAll(".tab-panel").forEach((panel) => panel.classList.toggle("hidden", panel.id !== tabName));
+  $("#documentos").classList.toggle("hidden", !showDocuments);
 }
 
 document.querySelectorAll(".nav-item[data-tab]").forEach((item) => {
   item.addEventListener("click", (event) => {
     event.preventDefault();
-    activateTab(item.dataset.tab);
-    history.replaceState(null, "", `#${item.dataset.tab}`);
+    activateTab(item.dataset.tab, item.dataset.subtab || "");
+    history.replaceState(null, "", `#${item.dataset.subtab ? "dossie" : item.dataset.tab}`);
+    if (item.dataset.subtab) $("#documentos").scrollIntoView({ behavior: "smooth", block: "start" });
   });
 });
 
