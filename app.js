@@ -919,7 +919,7 @@ function fillEmployeeForm(employee) {
   if (!employee) return;
   $("#dossie").classList.add("dossier-editing");
   $("#employee-id").value = employee.id;
-  const fields = ["name", "cpf", "birth", "gender", "salutation", "ethnicity", "marital", "education", "course", "nationality", "birthplace", "role", "department", "manager", "admission", "contract", "salary", "benefits", "status", "probation", "hierarchy", "contractDate", "contractDuration", "contractExpiration", "contractDate2", "contractDuration2", "contractExpiration2", "addressCountry", "addressCep", "addressStreet", "addressNumber", "addressNeighborhood", "addressCity", "addressState", "addressComplement"];
+  const fields = ["name", "cpf", "birth", "gender", "salutation", "ethnicity", "marital", "education", "course", "nationality", "birthplace", "role", "department", "manager", "admission", "contract", "salary", "benefits", "probation", "hierarchy", "contractDate", "contractDuration", "contractExpiration", "contractDate2", "contractDuration2", "contractExpiration2", "addressCountry", "addressCep", "addressStreet", "addressNumber", "addressNeighborhood", "addressCity", "addressState", "addressComplement"];
   fields.forEach((field) => { $(`#employee-${field}`).value = employee[field] || ""; });
   resetContractExpirationState();
   $("#employee-cellphone").value = employee.cellphone || "";
@@ -943,7 +943,6 @@ function resetEmployeeForm() {
   $("#employee-id").value = "";
   ["employee-cellphoneCountry", "employee-telephoneCountry", "employee-emergencyPhoneCountry"].forEach((id) => setPhoneCountry(id, "BR"));
   $("#employee-contract").value = "CLT";
-  $("#employee-status").value = "Ativo";
   resetContractExpirationState();
   renderEmployeeRecords({ documents: [], movements: [], trainings: [], feedbacks: [], medical: [] });
 }
@@ -986,7 +985,7 @@ function setupEmployeeFilters() {
 function saveEmployee(onSaved) {
   const id = Number($("#employee-id").value);
   const employee = employees.find((item) => item.id === id) || { id, documents: [], documentLibrary: [], vacationPeriods: [], movements: [], trainings: [], feedbacks: [], medical: [] };
-  ["name", "cpf", "birth", "gender", "salutation", "ethnicity", "marital", "education", "course", "nationality", "birthplace", "role", "department", "manager", "admission", "contract", "salary", "benefits", "status", "probation", "hierarchy", "contractDate", "contractDuration", "contractExpiration", "contractDate2", "contractDuration2", "contractExpiration2", "addressCountry", "addressCep", "addressStreet", "addressNumber", "addressNeighborhood", "addressCity", "addressState", "addressComplement"].forEach((field) => { employee[field] = $(`#employee-${field}`).value.trim(); });
+  ["name", "cpf", "birth", "gender", "salutation", "ethnicity", "marital", "education", "course", "nationality", "birthplace", "role", "department", "manager", "admission", "contract", "salary", "benefits", "probation", "hierarchy", "contractDate", "contractDuration", "contractExpiration", "contractDate2", "contractDuration2", "contractExpiration2", "addressCountry", "addressCep", "addressStreet", "addressNumber", "addressNeighborhood", "addressCity", "addressState", "addressComplement"].forEach((field) => { employee[field] = $(`#employee-${field}`).value.trim(); });
   employee.cellphone = $("#employee-cellphone").value.trim();
   employee.telephone = $("#employee-telephone").value.trim();
   employee.emergencyPhone = $("#employee-emergencyPhone").value.trim();
@@ -1001,6 +1000,7 @@ function saveEmployee(onSaved) {
   employee.fatherName = $("#employee-father-name").value.trim();
   employee.motherName = $("#employee-mother-name").value.trim();
   employee.disability = $("#employee-disability").checked;
+  employee.status = employee.status || "Ativo";
   persistEmployee(employee, id, onSaved);
 }
 

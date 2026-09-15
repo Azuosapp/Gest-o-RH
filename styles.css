@@ -389,7 +389,6 @@ tbody tr:hover { background: #fafcff; }
 /* Titulo de grupo dentro do grid (1o e 2o periodo de experiencia). */
 .contract-subheading { grid-column: 1 / -1; margin-bottom: -6px; color: var(--navy); font-size: 12px; font-weight: 800; }
 .contract-subheading + .contract-date { margin-top: 0; }
-.contract-status { grid-column: span 2; }
 .contract-benefits { grid-column: span 4; }
 .small { padding: 8px 11px; font-size: 11px; }
 .record-list { display: grid; gap: 8px; }
