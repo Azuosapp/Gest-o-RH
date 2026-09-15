@@ -702,8 +702,9 @@ function renderTable() {
 // =============================================================================
 // LEMBRETE DE VENCIMENTO DAS EXPERIENCIAS (pagina inicial)
 // Mostra quem esta com periodo de experiencia vencendo nos proximos 30 dias ou
-// vencido nos ultimos 30. Quando ha 2o periodo preenchido, ele e o prazo que
-// vale - o 1o ja foi decidido no momento em que prorrogaram.
+// vencido nos ultimos 30. Os DOIS periodos entram: o 1o vencendo e justamente
+// quando se decide prorrogar ou efetivar, entao escondê-lo porque existe um 2o
+// periodo mais distante era perder o aviso mais urgente.
 // =============================================================================
 const PROBATION_ALERT_AHEAD = 30;
 const PROBATION_ALERT_BEHIND = 30;
@@ -721,21 +722,24 @@ function probationSchedule(employee) {
 }
 
 function probationDeadlines() {
-  return employees.filter((employee) => employee.status !== "Desligado").map((employee) => {
+  return employees.filter((employee) => employee.status !== "Desligado").flatMap((employee) => {
     const { venc1, venc2 } = probationSchedule(employee);
-    const prorrogado = Boolean(venc2);
-    const data = prorrogado ? venc2 : venc1;
-    if (!data) return null;
-    const dias = daysUntil(data);
-    if (dias > PROBATION_ALERT_AHEAD || dias < -PROBATION_ALERT_BEHIND) return null;
-    return {
-      id: employee.id,
-      nome: employee.name || "Sem nome",
-      cargo: employee.role || "Cargo n\u00e3o informado",
-      rotulo: prorrogado ? "2\u00ba per\u00edodo" : "1\u00ba per\u00edodo",
-      data,
-      dias
-    };
+    return [
+      { rotulo: "1\u00ba per\u00edodo", data: venc1 },
+      { rotulo: "2\u00ba per\u00edodo", data: venc2 }
+    ].map(({ rotulo, data }) => {
+      if (!data) return null;
+      const dias = daysUntil(data);
+      if (dias > PROBATION_ALERT_AHEAD || dias < -PROBATION_ALERT_BEHIND) return null;
+      return {
+        id: employee.id,
+        nome: employee.name || "Sem nome",
+        cargo: employee.role || "Cargo n\u00e3o informado",
+        rotulo,
+        data,
+        dias
+      };
+    });
   }).filter(Boolean).sort((a, b) => a.data.localeCompare(b.data));
 }
 
