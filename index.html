@@ -149,7 +149,7 @@
         </section>
         <section id="dossie" class="tab-panel hidden">
           <div class="dossier-toolbar">
-            <div><p class="eyebrow">Gestão de pessoas</p><h2>Dossiê do colaborador</h2><p class="muted">Cadastro completo, documentos e histórico funcional em um só lugar.</p></div>
+            <div><p class="eyebrow">Gestão de pessoas</p><h2>Dossiê do colaborador</h2><p class="muted">Cadastre, edite e acompanhe os colaboradores em um só lugar.</p></div>
             <div class="dossier-actions"><input id="employee-search" type="search" placeholder="Buscar colaborador" aria-label="Buscar colaborador"><select id="employee-status-filter" aria-label="Filtrar colaborador por status"><option value="">Todos os status</option></select><select id="employee-department-filter" aria-label="Filtrar colaborador por departamento"><option value="">Todos os departamentos</option></select><select id="employee-picker" aria-label="Selecionar colaborador"></select><button type="button" class="button secondary" id="new-employee">+ Novo</button><button type="button" class="button primary" id="save-employee">Salvar cadastro</button></div>
           </div>
           <form id="employee-form">
@@ -158,7 +158,7 @@
               <article class="panel dossier-card dossier-wide">
                 <div class="panel-heading"><div><p class="eyebrow">Identificação</p><h2>Dados pessoais e profissionais</h2></div></div>
                 <div class="form-grid">
-                  <label>Nome completo<input required id="employee-name"></label>
+                  <label class="required-field">Nome completo<input required id="employee-name"></label>
                   <label>CPF<input id="employee-cpf" placeholder="000.000.000-00"></label>
                   <label>Data de nascimento<input id="employee-birth" type="date"></label>
                   <label>E-mail<input id="employee-email" type="email"></label>
@@ -171,8 +171,8 @@
               <article class="panel dossier-card">
                 <div class="panel-heading"><div><p class="eyebrow">Vínculo</p><h2>Dados profissionais</h2></div></div>
                 <div class="form-grid single">
-                  <label>Cargo<input id="employee-role"></label>
-                  <label>Departamento<input id="employee-department"></label>
+                  <label class="required-field">Cargo<input required id="employee-role"></label>
+                  <label class="required-field">Departamento<input required id="employee-department"></label>
                   <label>Gestor imediato<input id="employee-manager"></label>
                   <label>Unidade<input id="employee-unit"></label>
                   <label>Data de admissão<input id="employee-admission" type="date"></label>
@@ -221,7 +221,7 @@
             <select id="employee-list-department-filter" aria-label="Filtrar colaboradores por departamento"><option value="">Todos os departamentos</option></select>
           </div>
           <article class="panel employee-directory">
-            <div class="panel-heading"><div><p class="eyebrow">Cadastros ativos</p><h2>Colaboradores cadastrados</h2></div><span class="muted" id="employee-list-count"></span></div>
+            <div class="panel-heading"><div><p class="eyebrow">Gestão de talentos</p><h2>Colaboradores</h2></div><span class="muted" id="employee-list-count"></span></div>
             <div id="employee-list" class="employee-list"></div>
           </article>
         </section>

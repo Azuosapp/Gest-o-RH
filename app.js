@@ -455,7 +455,7 @@ function renderEmployeeList() {
     <div><span>Departamento</span><strong>${escapeHtml(employee.department || "Não informado")}</strong></div>
     <div><span>Unidade</span><strong>${escapeHtml(employee.unit || "Não informado")}</strong></div>
     <div><span class="employee-list-status">${escapeHtml(employee.status || "Ativo")}</span></div>
-    <button type="button" class="row-action" data-open-employee="${employee.id}">Abrir dossiê</button>
+    <button type="button" class="row-action" data-open-employee="${employee.id}">Opções · Editar</button>
   </div>`).join("") : `<div class="record-empty">Nenhum colaborador encontrado.</div>`;
 }
 
@@ -518,7 +518,12 @@ $("#cancel-record").addEventListener("click", () => $("#record-dialog").close())
 
 $("#employee-picker").addEventListener("change", () => fillEmployeeForm(employees.find((employee) => employee.id === Number($("#employee-picker").value))));
 ["#employee-search", "#employee-status-filter", "#employee-department-filter"].forEach((selector) => $(selector).addEventListener("input", refreshEmployeePicker));
-$("#save-employee").addEventListener("click", (event) => { event.preventDefault(); saveEmployee(); alert("Cadastro do colaborador salvo. O formulário foi limpo para um novo cadastro."); });
+$("#save-employee").addEventListener("click", (event) => {
+  event.preventDefault();
+  if (!$("#employee-form").reportValidity()) return;
+  saveEmployee();
+  alert("Cadastro do colaborador salvo. O formulário foi limpo para um novo cadastro.");
+});
 ["documents", "movements", "trainings", "feedbacks", "medical"].forEach((field) => $(`#add-${field === "medical" ? "medical" : field.slice(0, -1)}`).addEventListener("click", () => addEmployeeRecord(field)));
 $("#dossie").addEventListener("click", (event) => {
   if (!event.target.classList.contains("remove-record")) return;
