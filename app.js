@@ -705,10 +705,23 @@ function renderTable() {
 const PROBATION_ALERT_AHEAD = 30;
 const PROBATION_ALERT_BEHIND = 30;
 
+// Mesma corrente do dossie: Inicio + Duracao manda, o valor gravado so entra
+// quando nao da pra calcular. Sem isso, um vencimento salvo desatualizado
+// deixaria o lembrete fora de sincronia com o que o formulario mostra.
+function probationSchedule(employee) {
+  const venc1 = contractExpirationFrom(employee.contractDate, parseContractDuration(employee.contractDuration))
+    || employee.contractExpiration || "";
+  const inicio2 = venc1 ? addDaysIso(venc1, 1) : (employee.contractDate2 || "");
+  const venc2 = contractExpirationFrom(inicio2, parseContractDuration(employee.contractDuration2))
+    || employee.contractExpiration2 || "";
+  return { venc1, inicio2, venc2 };
+}
+
 function probationDeadlines() {
   return employees.filter((employee) => employee.status !== "Desligado").map((employee) => {
-    const prorrogado = Boolean(employee.contractExpiration2);
-    const data = prorrogado ? employee.contractExpiration2 : employee.contractExpiration;
+    const { venc1, venc2 } = probationSchedule(employee);
+    const prorrogado = Boolean(venc2);
+    const data = prorrogado ? venc2 : venc1;
     if (!data) return null;
     const dias = daysUntil(data);
     if (dias > PROBATION_ALERT_AHEAD || dias < -PROBATION_ALERT_BEHIND) return null;
@@ -994,6 +1007,7 @@ function persistEmployee(employee, id, onSaved) {
   setupEmployeeFilters();
   setupEmployeeListFilters();
   renderEmployeeList();
+  render(); // o lembrete de experiencias vive na home e precisa acompanhar
   resetEmployeeForm();
   $("#employee-picker").value = "";
   if (onSaved) onSaved();
