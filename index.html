@@ -18,6 +18,7 @@
           <div class="nav-group">
             <a class="nav-item active" href="#dossie" data-tab="dossie"><span class="nav-icon">▥</span>Dossiê do colaborador</a>
           </div>
+          <a class="nav-item" href="#ferias" data-tab="ferias"><span class="nav-icon">▧</span>Gestão de férias</a>
         </nav>
         <div class="nav-section-label">Sistema</div>
         <nav class="nav">
@@ -243,6 +244,36 @@
             <div id="document-list" class="document-list"></div>
           </article>
         </section>
+        <section id="ferias" class="tab-panel hidden">
+          <div class="vacation-hero">
+            <div><p class="eyebrow">Gestão de pessoas</p><h2>Gestão de férias</h2><p>Controle períodos aquisitivos, concessivos e programe as férias da equipe.</p></div>
+            <button type="button" class="button primary" id="add-vacation">+ Programar férias</button>
+          </div>
+          <div class="filters vacation-filters">
+            <input id="vacation-search" type="search" placeholder="Buscar colaborador" aria-label="Buscar férias por colaborador">
+            <select id="vacation-status-filter" aria-label="Filtrar férias por status"><option value="">Todos os status</option><option>Programada</option><option>Em férias</option><option>Concluída</option><option>Pendente</option></select>
+            <input id="vacation-month-filter" type="month" aria-label="Filtrar calendário por mês">
+          </div>
+          <div class="document-summary vacation-summary">
+            <div class="metric"><div class="metric-label">Períodos controlados</div><div class="metric-value" id="vacation-total">0</div><div class="metric-note">Acompanhamento ativo</div></div>
+            <div class="metric"><div class="metric-label">Próximos vencimentos</div><div class="metric-value" id="vacation-alert-count">0</div><div class="metric-note">Até 60 dias</div></div>
+            <div class="metric"><div class="metric-label">Férias programadas</div><div class="metric-value" id="vacation-scheduled-count">0</div><div class="metric-note">No calendário</div></div>
+          </div>
+          <div class="vacation-grid">
+            <article class="panel">
+              <div class="panel-heading"><div><p class="eyebrow">Conformidade</p><h2>Alertas de vencimento</h2></div></div>
+              <div id="vacation-alerts" class="pending-list"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-heading"><div><p class="eyebrow">Calendário</p><h2 id="vacation-calendar-title">Férias programadas</h2></div></div>
+              <div id="vacation-calendar" class="vacation-calendar"></div>
+            </article>
+          </div>
+          <article class="panel vacation-periods">
+            <div class="panel-heading"><div><p class="eyebrow">Controle legal</p><h2>Períodos aquisitivos e concessivos</h2></div></div>
+            <div id="vacation-list" class="record-list"></div>
+          </article>
+        </section>
         <section id="configuracoes" class="tab-panel panel placeholder-panel hidden">
           <p class="eyebrow">Sistema</p><h2>Configurações</h2>
           <p class="placeholder-copy">Preferências do sistema e dados salvos no navegador.</p>
@@ -317,6 +348,22 @@
         </div>
         <div id="version-list" class="version-list"></div>
         <div class="dialog-actions"><button type="button" class="button secondary" id="cancel-version">Fechar</button></div>
+      </form>
+    </dialog>
+    <dialog id="vacation-dialog">
+      <form id="vacation-form">
+        <div class="dialog-heading"><div><p class="eyebrow">Gestão de férias</p><h2>Programar férias</h2></div><button type="button" class="icon-button" id="close-vacation" aria-label="Fechar">×</button></div>
+        <div class="form-grid">
+          <label>Colaborador<select required id="vacation-employee"></select></label>
+          <label>Status<select id="vacation-status"><option>Programada</option><option>Em férias</option><option>Concluída</option><option>Pendente</option></select></label>
+          <label>Início do período aquisitivo<input required id="acquisition-start" type="date"></label>
+          <label>Fim do período aquisitivo<input required id="acquisition-end" type="date"></label>
+          <label>Limite do período concessivo<input required id="concession-deadline" type="date"></label>
+          <label>Início das férias<input required id="vacation-start" type="date"></label>
+          <label>Fim das férias<input required id="vacation-end" type="date"></label>
+          <label class="full-width">Observações<textarea id="vacation-notes" rows="3"></textarea></label>
+        </div>
+        <div class="dialog-actions"><button type="button" class="button secondary" id="cancel-vacation">Cancelar</button><button type="submit" class="button primary">Salvar período</button></div>
       </form>
     </dialog>
     <script src="app.js"></script>

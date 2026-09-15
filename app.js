@@ -37,11 +37,12 @@ const initialEmployees = [{
   id: 1, name: "Exemplo de colaborador", cpf: "", birth: "", email: "", phone: "", marital: "", birthplace: "", education: "",
   role: "Analista de Departamento Pessoal", department: "Recursos Humanos", manager: "Gestor responsável", unit: "Matriz",
   admission: "", contract: "CLT", salary: "R$ 0,00", benefits: "", status: "Ativo",
-  documents: [], documentLibrary: [], movements: [], trainings: [], feedbacks: [], medical: []
+  documents: [], documentLibrary: [], vacationPeriods: [], movements: [], trainings: [], feedbacks: [], medical: []
 }];
 let employees = JSON.parse(localStorage.getItem("employees")) || initialEmployees;
 employees.forEach((employee) => {
   if (!Array.isArray(employee.documentLibrary)) employee.documentLibrary = [];
+  if (!Array.isArray(employee.vacationPeriods)) employee.vacationPeriods = [];
 });
 const $ = (selector) => document.querySelector(selector);
 
@@ -50,6 +51,50 @@ function activateTab(tabName, subtabName = "") {
   document.querySelectorAll(".nav-item[data-tab]").forEach((item) => item.classList.toggle("active", item.dataset.tab === tabName && (item.dataset.subtab || "") === subtabName));
   document.querySelectorAll(".tab-panel").forEach((panel) => panel.classList.toggle("hidden", panel.id !== tabName));
   $("#documentos").classList.toggle("hidden", !showDocuments);
+}
+
+function vacationRecords() {
+  return employees.flatMap((employee) => (employee.vacationPeriods || []).map((period) => ({ ...period, employeeId: employee.id, employeeName: employee.name })));
+}
+
+function daysUntil(date) {
+  return Math.ceil((new Date(`${date}T23:59:59`) - new Date()) / 86400000);
+}
+
+function renderVacations() {
+  const query = $("#vacation-search").value.toLowerCase().trim();
+  const status = $("#vacation-status-filter").value;
+  const month = $("#vacation-month-filter").value;
+  const records = vacationRecords().filter((record) => (!query || record.employeeName.toLowerCase().includes(query)) && (!status || record.status === status));
+  const alerts = records.filter((record) => {
+    const days = daysUntil(record.concessionDeadline);
+    return record.status !== "Concluída" && days <= 60;
+  }).sort((a, b) => a.concessionDeadline.localeCompare(b.concessionDeadline));
+  const scheduled = records.filter((record) => !month || record.vacationStart.startsWith(month)).sort((a, b) => a.vacationStart.localeCompare(b.vacationStart));
+  $("#vacation-total").textContent = records.length;
+  $("#vacation-alert-count").textContent = alerts.length;
+  $("#vacation-scheduled-count").textContent = scheduled.length;
+  $("#vacation-alerts").innerHTML = alerts.length ? alerts.map((record) => {
+    const days = daysUntil(record.concessionDeadline);
+    const label = days < 0 ? `Vencido há ${Math.abs(days)} dia(s)` : `Vence em ${days} dia(s)`;
+    return `<div class="pending-item vacation-alert"><div><strong>${escapeHtml(record.employeeName)}</strong><span>Concessivo até ${formatDate(record.concessionDeadline)}</span></div><b>${label}</b></div>`;
+  }).join("") : `<div class="record-empty">Nenhum período próximo do vencimento.</div>`;
+  $("#vacation-calendar-title").textContent = month ? `Férias em ${formatMonth(month)}` : "Férias programadas";
+  $("#vacation-calendar").innerHTML = scheduled.length ? scheduled.map((record) => `<div class="calendar-event"><span class="calendar-day">${formatDate(record.vacationStart, true)}</span><div><strong>${escapeHtml(record.employeeName)}</strong><span>${formatDate(record.vacationStart)} a ${formatDate(record.vacationEnd)} · ${escapeHtml(record.status)}</span></div></div>`).join("") : `<div class="record-empty">Nenhuma férias programada para este período.</div>`;
+  $("#vacation-list").innerHTML = records.length ? records.map((record) => `<div class="record-row"><div><strong>${escapeHtml(record.employeeName)} · ${escapeHtml(record.status)}</strong><span>Aquisitivo: ${formatDate(record.acquisitionStart)} a ${formatDate(record.acquisitionEnd)} · Concessivo até ${formatDate(record.concessionDeadline)} · Férias: ${formatDate(record.vacationStart)} a ${formatDate(record.vacationEnd)}</span></div><button type="button" class="remove-record" data-remove-vacation="${record.employeeId}:${record.id}">Remover</button></div>`).join("") : `<div class="record-empty">Nenhum período de férias cadastrado.</div>`;
+}
+
+function formatDate(value, short = false) {
+  if (!value) return "Sem data";
+  return new Date(`${value}T12:00:00`).toLocaleDateString("pt-BR", short ? { day: "2-digit", month: "short" } : undefined);
+}
+
+function formatMonth(value) {
+  return new Date(`${value}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+}
+
+function refreshVacationEmployees() {
+  $("#vacation-employee").innerHTML = employees.map((employee) => `<option value="${employee.id}">${escapeHtml(employee.name)}</option>`).join("");
 }
 
 document.querySelectorAll(".nav-item[data-tab]").forEach((item) => {
@@ -360,7 +405,7 @@ function setupEmployeeFilters() {
 
 function saveEmployee() {
   const id = Number($("#employee-id").value);
-  const employee = employees.find((item) => item.id === id) || { id, documents: [], documentLibrary: [], movements: [], trainings: [], feedbacks: [], medical: [] };
+  const employee = employees.find((item) => item.id === id) || { id, documents: [], documentLibrary: [], vacationPeriods: [], movements: [], trainings: [], feedbacks: [], medical: [] };
   ["name", "cpf", "birth", "email", "phone", "marital", "birthplace", "education", "role", "department", "manager", "unit", "admission", "contract", "salary", "benefits", "status"].forEach((field) => { employee[field] = $(`#employee-${field}`).value.trim(); });
   employees = employees.some((item) => item.id === id) ? employees.map((item) => item.id === id ? employee : item) : [...employees, employee];
   localStorage.setItem("employees", JSON.stringify(employees));
@@ -369,7 +414,7 @@ function saveEmployee() {
 }
 
 $("#new-employee").addEventListener("click", () => {
-  const employee = { id: Date.now(), name: "Novo colaborador", documents: [], documentLibrary: [], movements: [], trainings: [], feedbacks: [], medical: [], contract: "CLT", status: "Ativo" };
+  const employee = { id: Date.now(), name: "Novo colaborador", documents: [], documentLibrary: [], vacationPeriods: [], movements: [], trainings: [], feedbacks: [], medical: [], contract: "CLT", status: "Ativo" };
   employees.push(employee);
   localStorage.setItem("employees", JSON.stringify(employees));
   refreshEmployeePicker();
@@ -485,10 +530,50 @@ $("#version-list").addEventListener("click", (event) => {
 $("#close-version").addEventListener("click", () => $("#version-dialog").close());
 $("#cancel-version").addEventListener("click", () => $("#version-dialog").close());
 
+["#vacation-search", "#vacation-status-filter", "#vacation-month-filter"].forEach((selector) => $(selector).addEventListener("input", renderVacations));
+$("#add-vacation").addEventListener("click", () => {
+  $("#vacation-form").reset();
+  refreshVacationEmployees();
+  $("#vacation-dialog").showModal();
+});
+$("#close-vacation").addEventListener("click", () => $("#vacation-dialog").close());
+$("#cancel-vacation").addEventListener("click", () => $("#vacation-dialog").close());
+$("#vacation-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const employee = employees.find((item) => item.id === Number($("#vacation-employee").value));
+  if (!employee) return;
+  if (!employee.vacationPeriods) employee.vacationPeriods = [];
+  employee.vacationPeriods.push({
+    id: Date.now(),
+    status: $("#vacation-status").value,
+    acquisitionStart: $("#acquisition-start").value,
+    acquisitionEnd: $("#acquisition-end").value,
+    concessionDeadline: $("#concession-deadline").value,
+    vacationStart: $("#vacation-start").value,
+    vacationEnd: $("#vacation-end").value,
+    notes: $("#vacation-notes").value.trim()
+  });
+  localStorage.setItem("employees", JSON.stringify(employees));
+  renderVacations();
+  $("#vacation-dialog").close();
+});
+$("#vacation-list").addEventListener("click", (event) => {
+  const key = event.target.dataset.removeVacation;
+  if (!key) return;
+  const [employeeId, periodId] = key.split(":").map(Number);
+  const employee = employees.find((item) => item.id === employeeId);
+  if (!employee) return;
+  employee.vacationPeriods = employee.vacationPeriods.filter((period) => period.id !== periodId);
+  localStorage.setItem("employees", JSON.stringify(employees));
+  renderVacations();
+});
+
 setupFilters();
 render();
 setupEmployeeFilters();
 refreshEmployeePicker();
 fillEmployeeForm(employees[0]);
 refreshDocumentsEmployeePicker();
+refreshVacationEmployees();
+renderVacations();
 activateTab(location.hash.replace("#", "") || "dashboard");
