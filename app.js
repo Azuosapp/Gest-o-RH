@@ -521,6 +521,9 @@ function activateTab(tabName, subtabName = "") {
   document.querySelectorAll(".tab-panel").forEach((panel) => panel.classList.toggle("hidden", panel.id !== tabName));
   $("#documentos").classList.toggle("hidden", !showDocuments);
   if (tabName === "dossie" || tabName === "colaboradores") window.scrollTo(0, 0);
+  // A home so era desenhada no carregamento da pagina. Quem editava um
+  // colaborador e voltava pra ca via o lembrete de experiencias desatualizado.
+  if (tabName === "dashboard") renderProbationReminders();
 }
 
 function vacationRecords() {
