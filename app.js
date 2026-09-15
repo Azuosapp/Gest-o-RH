@@ -295,6 +295,10 @@ function resetContractExpirationState() {
   ultimoCalculado[PROBATION_PERIODS[1].inicio] = "";
   $("#contract-date2-hint").className = "field-hint";
   $("#contract-date2-hint").textContent = "";
+  // Recalcula ja na abertura do colaborador: quem estava com data antiga ou
+  // salva antes de uma correcao de regra volta ao valor certo, e as dicas
+  // mostram de onde cada vencimento saiu.
+  updateProbationSchedule();
 }
 
 function setupContractExpiration() {
