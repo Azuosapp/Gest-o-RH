@@ -59,12 +59,32 @@ employees.forEach((employee) => {
 const $ = (selector) => document.querySelector(selector);
 let addressLookupRequest = 0;
 
+// Mascote Zuzu. As poses vivem em brand/mascote/ e vieram do repo trilha-azuos.
+// Ele so aparece em boas-vindas, telas vazias e comemoracoes - nunca no meio do
+// trabalho, conforme o guia do mascote.
+function zuzuMarkup(pose, size = "sm", anim = "") {
+  const animClass = anim ? ` zuzu-anim-${anim}` : "";
+  return `<img class="zuzu zuzu-${size}${animClass}" src="brand/mascote/zuzu-${pose}.png" alt="" loading="lazy">`;
+}
+
+// pose null = so o texto. Em telas com varias listas vazias ao mesmo tempo
+// (ex.: ferias), so a lista principal ganha o mascote - um Zuzu por tela.
+function emptyState(message, pose = "confuso") {
+  const mascote = pose ? zuzuMarkup(pose) : "";
+  return `<div class="record-empty">${mascote}<span>${message}</span></div>`;
+}
+
+function flagMarkup(code) {
+  const slug = code.toLowerCase();
+  return `<img class="phone-flag-image" src="https://flagcdn.com/w40/${slug}.png" srcset="https://flagcdn.com/w80/${slug}.png 2x" alt="" loading="lazy" data-flag-code="${code}">`;
+}
+
 function setPhoneCountry(inputId, countryCode) {
   const picker = document.querySelector(`[data-phone-country="${inputId}"]`);
   if (!picker) return;
   const option = picker.querySelector(`[data-country-code="${countryCode}"]`) || picker.querySelector('[data-country-code="BR"]');
   picker.dataset.selectedCountry = option.dataset.countryCode;
-  picker.querySelector(".phone-flag").textContent = option.querySelector(".phone-flag").textContent;
+  picker.querySelector(".phone-flag").innerHTML = flagMarkup(option.dataset.countryCode);
   picker.querySelector(".phone-country-code").textContent = option.dataset.dialCode;
   picker.querySelector(".phone-country-button").setAttribute("aria-label", `País selecionado: ${option.dataset.countryCode} ${option.dataset.dialCode}`);
   picker.querySelectorAll(".phone-country-option").forEach((item) => item.classList.toggle("selected", item === option));
@@ -74,15 +94,118 @@ function selectedPhoneCountry(inputId) {
   return document.querySelector(`[data-phone-country="${inputId}"]`)?.dataset.selectedCountry || "BR";
 }
 
+// =============================================================================
+// COMBO DE CADASTRO (departamento, cargo, superior direto)
+// Datalist nativa so aparecia depois de digitar, entao o usuario nunca via o
+// que ja estava cadastrado em Configuracoes > Cadastro. Aqui a lista inteira
+// abre ao focar o campo e vai filtrando conforme se digita.
+// =============================================================================
+function comboItems(key) {
+  return settingsLists[key] || [];
+}
+
+function renderComboMenu(combo, query = "") {
+  const menu = combo.querySelector(".combo-menu");
+  const normalized = query.trim().toLocaleLowerCase("pt-BR");
+  const atual = combo.querySelector("input").value.trim().toLocaleLowerCase("pt-BR");
+  const items = comboItems(combo.dataset.combo).filter((item) => item.toLocaleLowerCase("pt-BR").includes(normalized));
+  menu.innerHTML = items.length
+    ? items.map((item) => `<button type="button" class="combo-option${item.toLocaleLowerCase("pt-BR") === atual ? " selected" : ""}" role="option" aria-selected="${item.toLocaleLowerCase("pt-BR") === atual}">${escapeHtml(item)}</button>`).join("")
+    : `<span class="combo-empty">${comboItems(combo.dataset.combo).length ? "Nenhum resultado para esta busca." : "Nada cadastrado ainda. Use Configura\u00e7\u00f5es \u203a Cadastro."}</span>`;
+}
+
+function openCombo(combo, query = "") {
+  document.querySelectorAll(".combo.open").forEach((outro) => { if (outro !== combo) closeCombo(outro); });
+  renderComboMenu(combo, query);
+  combo.classList.add("open");
+  combo.querySelector("input").setAttribute("aria-expanded", "true");
+}
+
+function closeCombo(combo) {
+  combo.classList.remove("open");
+  combo.querySelector("input").setAttribute("aria-expanded", "false");
+  combo.querySelectorAll(".combo-option.active").forEach((option) => option.classList.remove("active"));
+}
+
+function moveComboActive(combo, passo) {
+  const options = [...combo.querySelectorAll(".combo-option")];
+  if (!options.length) return;
+  const atual = options.findIndex((option) => option.classList.contains("active"));
+  const proximo = atual === -1 ? (passo > 0 ? 0 : options.length - 1) : (atual + passo + options.length) % options.length;
+  options.forEach((option) => option.classList.remove("active"));
+  options[proximo].classList.add("active");
+  options[proximo].scrollIntoView({ block: "nearest" });
+}
+
+function pickComboValue(combo, value) {
+  const input = combo.querySelector("input");
+  input.value = value;
+  closeCombo(combo);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function setupCombos() {
+  document.querySelectorAll(".combo").forEach((combo) => {
+    const input = combo.querySelector("input");
+    const toggle = combo.querySelector(".combo-toggle");
+    const menu = combo.querySelector(".combo-menu");
+
+    // Focar ou clicar mostra TUDO que esta cadastrado, nao so o que casa com o texto.
+    input.addEventListener("focus", () => openCombo(combo));
+    input.addEventListener("mousedown", () => { if (!combo.classList.contains("open")) openCombo(combo); });
+    input.addEventListener("input", () => openCombo(combo, input.value));
+    toggle.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+      if (combo.classList.contains("open")) { closeCombo(combo); return; }
+      openCombo(combo);
+      input.focus();
+    });
+
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        if (!combo.classList.contains("open")) openCombo(combo);
+        moveComboActive(combo, event.key === "ArrowDown" ? 1 : -1);
+        return;
+      }
+      if (event.key === "Enter") {
+        const ativo = combo.querySelector(".combo-option.active");
+        if (ativo) { event.preventDefault(); pickComboValue(combo, ativo.textContent); }
+        return;
+      }
+      if (event.key === "Escape" && combo.classList.contains("open")) {
+        event.stopPropagation();
+        closeCombo(combo);
+      }
+    });
+
+    menu.addEventListener("mousedown", (event) => {
+      const option = event.target.closest(".combo-option");
+      if (!option) return;
+      event.preventDefault();
+      pickComboValue(combo, option.textContent);
+    });
+
+    input.addEventListener("blur", () => { window.setTimeout(() => closeCombo(combo), 120); });
+  });
+
+  document.addEventListener("click", (event) => {
+    document.querySelectorAll(".combo.open").forEach((combo) => {
+      if (!combo.contains(event.target)) closeCombo(combo);
+    });
+  });
+}
+
 function refreshSettingsLists() {
-  const listMap = { departments: "department-options", roles: "role-options", managers: "manager-options" };
-  Object.entries(listMap).forEach(([key, datalistId]) => {
-    $(`#${datalistId}`).innerHTML = settingsLists[key].map((value) => `<option value="${escapeHtml(value)}"></option>`).join("");
+  ["departments", "roles", "managers"].forEach((key) => {
     const list = $(`#${key}-list`);
     list.innerHTML = settingsLists[key].length
       ? settingsLists[key].map((value) => `<div class="settings-list-row"><span>${escapeHtml(value)}</span><div class="settings-list-actions"><button type="button" class="settings-list-edit" data-edit-setting="${key}" data-setting-value="${escapeHtml(value)}">Editar</button><button type="button" class="settings-list-remove" data-remove-setting="${key}" data-setting-value="${escapeHtml(value)}">Remover</button></div></div>`).join("")
-      : `<div class="settings-list-empty">Nenhum item cadastrado.</div>`;
+      : `<div class="settings-list-empty">${zuzuMarkup("pensativo")}<span>Nenhum item cadastrado.</span></div>`;
   });
+  // Quem estiver com o combo aberto ve o item novo na hora.
+  document.querySelectorAll(".combo.open").forEach((combo) => renderComboMenu(combo, combo.querySelector("input").value));
 }
 
 function addSettingItem(key, value) {
@@ -135,7 +258,6 @@ function populateCountryOptions() {
     AT: "+43", AU: "+61", NZ: "+64", JP: "+81", CN: "+86", IN: "+91", KR: "+82", RU: "+7",
     ZA: "+27", AO: "+244", MZ: "+258", CV: "+238", EG: "+20", IL: "+972", AE: "+971", TR: "+90"
   };
-  const flagFor = (code) => code.replace(/[A-Z]/g, (letter) => String.fromCodePoint(letter.charCodeAt(0) + 127397));
   document.querySelectorAll(".phone-country-picker").forEach((picker) => {
     const menu = picker.querySelector(".phone-country-menu");
     const search = menu.querySelector(".phone-country-search");
@@ -143,7 +265,7 @@ function populateCountryOptions() {
       const normalizedQuery = query.trim().toLocaleLowerCase("pt-BR");
       const filteredCountries = countries.filter((country) => `${country.code} ${country.name} ${dialCodes[country.code] || ""}`.toLocaleLowerCase("pt-BR").includes(normalizedQuery));
       menu.querySelectorAll(".phone-country-option").forEach((option) => option.remove());
-      menu.insertAdjacentHTML("beforeend", filteredCountries.map((country) => `<button type="button" class="phone-country-option" role="option" data-country-code="${country.code}" data-dial-code="${dialCodes[country.code] || "+"}"><span class="phone-flag">${flagFor(country.code)}</span><span>${escapeHtml(country.code)} ${escapeHtml(country.name)} (${dialCodes[country.code] || "código"})</span></button>`).join(""));
+      menu.insertAdjacentHTML("beforeend", filteredCountries.map((country) => `<button type="button" class="phone-country-option" role="option" data-country-code="${country.code}" data-dial-code="${dialCodes[country.code] || "+"}"><span class="phone-flag">${flagMarkup(country.code)}</span><span>${escapeHtml(country.code)} ${escapeHtml(country.name)} (${dialCodes[country.code] || "código"})</span></button>`).join(""));
       menu.querySelectorAll(".phone-country-option").forEach((option) => {
         option.addEventListener("click", () => {
           setPhoneCountry(picker.dataset.phoneCountry, option.dataset.countryCode);
@@ -159,7 +281,7 @@ function populateCountryOptions() {
     renderCountries();
     picker.dataset.selectedCountry = "BR";
     picker.querySelector(".phone-country-code").textContent = dialCodes.BR;
-    picker.querySelector(".phone-flag").textContent = flagFor("BR");
+    picker.querySelector(".phone-flag").innerHTML = flagMarkup("BR");
     picker.querySelector(".phone-country-button").setAttribute("aria-label", `País selecionado: BR ${dialCodes.BR}`);
   });
 }
@@ -235,10 +357,10 @@ function renderVacations() {
     const days = daysUntil(record.concessionDeadline);
     const label = days < 0 ? `Vencido há ${Math.abs(days)} dia(s)` : `Vence em ${days} dia(s)`;
     return `<div class="pending-item vacation-alert"><div><strong>${escapeHtml(record.employeeName)}</strong><span>Concessivo até ${formatDate(record.concessionDeadline)}</span></div><b>${label}</b></div>`;
-  }).join("") : `<div class="record-empty">Nenhum período próximo do vencimento.</div>`;
+  }).join("") : emptyState("Nenhum período próximo do vencimento.", null);
   $("#vacation-calendar-title").textContent = month ? `Férias em ${formatMonth(month)}` : "Férias programadas";
-  $("#vacation-calendar").innerHTML = scheduled.length ? scheduled.map((record) => `<div class="calendar-event"><span class="calendar-day">${formatDate(record.vacationStart, true)}</span><div><strong>${escapeHtml(record.employeeName)}</strong><span>${formatDate(record.vacationStart)} a ${formatDate(record.vacationEnd)} · ${escapeHtml(record.status)}</span></div></div>`).join("") : `<div class="record-empty">Nenhuma férias programada para este período.</div>`;
-  $("#vacation-list").innerHTML = records.length ? records.map((record) => `<div class="record-row"><div><strong>${escapeHtml(record.employeeName)} · ${escapeHtml(record.status)}</strong><span>Aquisitivo: ${formatDate(record.acquisitionStart)} a ${formatDate(record.acquisitionEnd)} · Concessivo até ${formatDate(record.concessionDeadline)} · Férias: ${formatDate(record.vacationStart)} a ${formatDate(record.vacationEnd)}</span></div><button type="button" class="remove-record" data-remove-vacation="${record.employeeId}:${record.id}">Remover</button></div>`).join("") : `<div class="record-empty">Nenhum período de férias cadastrado.</div>`;
+  $("#vacation-calendar").innerHTML = scheduled.length ? scheduled.map((record) => `<div class="calendar-event"><span class="calendar-day">${formatDate(record.vacationStart, true)}</span><div><strong>${escapeHtml(record.employeeName)}</strong><span>${formatDate(record.vacationStart)} a ${formatDate(record.vacationEnd)} · ${escapeHtml(record.status)}</span></div></div>`).join("") : emptyState("Nenhuma férias programada para este período.", null);
+  $("#vacation-list").innerHTML = records.length ? records.map((record) => `<div class="record-row"><div><strong>${escapeHtml(record.employeeName)} · ${escapeHtml(record.status)}</strong><span>Aquisitivo: ${formatDate(record.acquisitionStart)} a ${formatDate(record.acquisitionEnd)} · Concessivo até ${formatDate(record.concessionDeadline)} · Férias: ${formatDate(record.vacationStart)} a ${formatDate(record.vacationEnd)}</span></div><button type="button" class="remove-record" data-remove-vacation="${record.employeeId}:${record.id}">Remover</button></div>`).join("") : emptyState("Nenhum período de férias cadastrado.", "dormindo");
 }
 
 function formatDate(value, short = false) {
@@ -488,7 +610,7 @@ function renderDocuments() {
         <button type="button" class="document-action danger" data-document-action="remove" data-document-id="${document.id}">Remover</button>
       </div>
     </div>`;
-  }).join("") : `<div class="record-empty">Nenhum documento encontrado para este colaborador.</div>`;
+  }).join("") : emptyState("Nenhum documento encontrado para este colaborador.", "lupa");
 }
 
 function refreshDocumentFilters() {
@@ -566,7 +688,7 @@ function resetEmployeeForm() {
 function renderEmployeeRecords(employee) {
   const list = (field, empty, renderer) => {
     const records = employee[field] || [];
-    $(`#${field === "medical" ? "medical" : field}-list`).innerHTML = records.length ? records.map((record, index) => renderer(record, index)).join("") : `<div class="record-empty">${empty}</div>`;
+    $(`#${field === "medical" ? "medical" : field}-list`).innerHTML = records.length ? records.map((record, index) => renderer(record, index)).join("") : emptyState(empty);
   };
   list("documents", "Nenhum documento cadastrado.", (record, index) => `<div class="record-row"><div><strong>${record.name}</strong><span>${record.type || "Documento"} · ${record.date || "Sem data"}</span></div><button type="button" class="remove-record" data-record="documents" data-index="${index}">Remover</button></div>`);
   list("movements", "Nenhuma movimentação cadastrada.", (record, index) => `<div class="record-row"><div><strong>${record.date || "Sem data"} · ${record.type}</strong><span>${record.description || ""} ${record.role ? `· ${record.role}` : ""}</span></div><button type="button" class="remove-record" data-record="movements" data-index="${index}">Remover</button></div>`);
@@ -662,7 +784,7 @@ function renderEmployeeList() {
       <div class="employee-list-cell" data-label="Nível"><strong>${escapeHtml(employee.level || employee.unit || "Não informado")}</strong></div>
       <div class="employee-list-cell" data-label="Status"><span class="employee-list-status">${escapeHtml(employee.status || "Ativo")}</span></div>
     </div>`;
-  }).join("") : `<div class="record-empty">Nenhum colaborador encontrado.</div>`;
+  }).join("") : emptyState("Nenhum colaborador encontrado.", "lupa");
 }
 
 function setupEmployeeListFilters() {
@@ -871,6 +993,13 @@ $("#vacation-list").addEventListener("click", (event) => {
 
 setupFilters();
 render();
+document.addEventListener("error", (event) => {
+  const image = event.target;
+  if (!image.classList || !image.classList.contains("phone-flag-image")) return;
+  const holder = image.parentElement;
+  holder.classList.add("phone-flag-fallback");
+  holder.textContent = image.dataset.flagCode;
+}, true);
 populateCountryOptions();
 document.querySelectorAll(".phone-country-button").forEach((button) => {
   button.addEventListener("click", (event) => {
@@ -917,13 +1046,34 @@ document.querySelectorAll("[data-settings-page]").forEach((item) => {
     }
   });
 });
+const returnToSettings = () => {
+  activateTab("cadastro-configuracoes");
+  history.replaceState(null, "", "#cadastro-configuracoes");
+};
 document.querySelectorAll("[data-settings-back]").forEach((button) => {
   button.addEventListener("click", () => {
-    activateTab("cadastro-configuracoes");
-    history.replaceState(null, "", "#cadastro-configuracoes");
+    $("#settings-success-dialog").showModal();
+  });
+});
+$("#settings-success-continue").addEventListener("click", () => {
+  $("#settings-success-dialog").close();
+});
+$("#settings-success-dialog").addEventListener("close", returnToSettings);
+document.querySelectorAll("[data-settings-focus]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const form = document.querySelector(`[data-settings-form="${button.dataset.settingsFocus}"]`);
+    if (!form) return;
+    const input = form.querySelector("input");
+    form.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    input.focus();
   });
 });
 document.querySelectorAll("[data-settings-form]").forEach((form) => {
+  form.querySelector("input").addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    form.requestSubmit();
+  });
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     const key = form.dataset.settingsForm;
@@ -959,6 +1109,7 @@ document.querySelectorAll(".settings-list").forEach((list) => {
     if (event.target.closest(".settings-list-cancel")) refreshSettingsLists();
   });
 });
+setupCombos();
 refreshSettingsLists();
 setupEmployeeFilters();
 setupEmployeeListFilters();

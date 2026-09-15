@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="176" height="58" viewBox="0 0 176 58" role="img">
-  <rect x="0" y="8" width="42" height="42" rx="11" fill="#F5C518"/>
-  <path d="M14 34c1.9-7.2 4.1-10.8 7.2-10.8 2.9 0 4.6 2.6 4.6 7.7 0 1.7-.1 3.3-.4 4.8h-3.7c.2-1.1.3-2.3.3-3.5 0-2.5-.5-3.8-1.5-3.8-1.2 0-2.2 1.8-3.1 5.6H14Z" fill="#FFF"/>
-  <circle cx="29.8" cy="20.2" r="3.1" fill="#FFF"/>
-  <text x="55" y="14" fill="#FFF" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="700" letter-spacing="1.2">GRUPO</text>
-  <text x="55" y="34" fill="#F5C518" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="700" letter-spacing="-0.8">azuos</text>
-  <text x="55" y="47" fill="#FFF" font-family="Arial, Helvetica, sans-serif" font-size="9.5" font-weight="400">Gestão de talentos</text>
-</svg>

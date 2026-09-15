@@ -4,13 +4,18 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Gestão de Pessoas | Grupo Azuos</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="brand/favicon-32.png">
+    <link rel="apple-touch-icon" href="brand/azuos-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
     <div class="app-shell">
       <aside class="sidebar">
         <div class="brand">
-          <img src="azuos-logo.svg" alt="Grupo Azuos - Gestão de talentos">
+          <img src="brand/azuos-branco.png" alt="Grupo Azuos">
         </div>
         <nav class="nav">
           <a class="nav-item" href="#dashboard" data-tab="dashboard"><span class="nav-icon">⌂</span>Início</a>
@@ -52,7 +57,10 @@
               <h2>Bom dia, equipe de pessoas</h2>
               <p class="muted">Acompanhe os principais movimentos da operação e acesse rapidamente as tarefas do dia.</p>
             </div>
-            <div class="home-date" id="home-date"></div>
+            <div class="home-hero-aside">
+              <img class="zuzu zuzu-lg zuzu-anim-float" src="brand/mascote/zuzu-acenando.png" alt="Zuzu, o mascote da Azuos, acenando" loading="lazy">
+              <div class="home-date" id="home-date"></div>
+            </div>
           </div>
           <div class="filters dashboard-filters">
             <input id="dashboard-search" type="search" placeholder="Buscar candidato, vaga ou responsável" aria-label="Buscar nos indicadores">
@@ -139,7 +147,7 @@
               </thead>
               <tbody id="candidate-table"></tbody>
             </table>
-            <div class="empty-state hidden" id="empty-state">Nenhum candidato encontrado.</div>
+            <div class="empty-state hidden" id="empty-state"><img class="zuzu zuzu-md" src="brand/mascote/zuzu-lupa.png" alt="Zuzu procurando com uma lupa" loading="lazy"><span>Nenhum candidato encontrado.</span></div>
           </div>
         </section>
         <section id="vagas" class="tab-panel panel placeholder-panel hidden">
@@ -199,13 +207,13 @@
                 <div class="panel-heading"><div><h2>Contatos</h2></div></div>
                 <div class="contacts-grid">
                   <label>Celular
-                    <span class="phone-input"><span class="phone-country-picker" data-phone-country="employee-cellphoneCountry"><button type="button" class="phone-country-button" aria-haspopup="listbox" aria-expanded="false"><span class="phone-flag">🇧🇷</span><span class="phone-country-code">+55</span><span class="phone-chevron">▾</span></button><span class="phone-country-menu" role="listbox"><input class="phone-country-search" type="search" placeholder="Buscar país..." aria-label="Buscar país"></span></span><input id="employee-cellphone" inputmode="tel" placeholder="00 00000-0000"></span>
+                    <span class="phone-input"><span class="phone-country-picker" data-phone-country="employee-cellphoneCountry"><button type="button" class="phone-country-button" aria-haspopup="listbox" aria-expanded="false"><span class="phone-flag"><img class="phone-flag-image" src="https://flagcdn.com/w40/br.png" srcset="https://flagcdn.com/w80/br.png 2x" alt="" loading="lazy" data-flag-code="BR"></span><span class="phone-country-code">+55</span><span class="phone-chevron">▾</span></button><span class="phone-country-menu" role="listbox"><input class="phone-country-search" type="search" placeholder="Buscar país..." aria-label="Buscar país"></span></span><input id="employee-cellphone" inputmode="tel" placeholder="00 00000-0000"></span>
                   </label>
                   <label>Telefone
-                    <span class="phone-input"><span class="phone-country-picker" data-phone-country="employee-telephoneCountry"><button type="button" class="phone-country-button" aria-haspopup="listbox" aria-expanded="false"><span class="phone-flag">🇧🇷</span><span class="phone-country-code">+55</span><span class="phone-chevron">▾</span></button><span class="phone-country-menu" role="listbox"><input class="phone-country-search" type="search" placeholder="Buscar país..." aria-label="Buscar país"></span></span><input id="employee-telephone" inputmode="tel" placeholder="00 00000-0000"></span>
+                    <span class="phone-input"><span class="phone-country-picker" data-phone-country="employee-telephoneCountry"><button type="button" class="phone-country-button" aria-haspopup="listbox" aria-expanded="false"><span class="phone-flag"><img class="phone-flag-image" src="https://flagcdn.com/w40/br.png" srcset="https://flagcdn.com/w80/br.png 2x" alt="" loading="lazy" data-flag-code="BR"></span><span class="phone-country-code">+55</span><span class="phone-chevron">▾</span></button><span class="phone-country-menu" role="listbox"><input class="phone-country-search" type="search" placeholder="Buscar país..." aria-label="Buscar país"></span></span><input id="employee-telephone" inputmode="tel" placeholder="00 00000-0000"></span>
                   </label>
                   <label>Telefone de Emergência
-                    <span class="phone-input"><span class="phone-country-picker" data-phone-country="employee-emergencyPhoneCountry"><button type="button" class="phone-country-button" aria-haspopup="listbox" aria-expanded="false"><span class="phone-flag">🇧🇷</span><span class="phone-country-code">+55</span><span class="phone-chevron">▾</span></button><span class="phone-country-menu" role="listbox"><input class="phone-country-search" type="search" placeholder="Buscar país..." aria-label="Buscar país"></span></span><input id="employee-emergencyPhone" inputmode="tel" placeholder="00 00000-0000"></span>
+                    <span class="phone-input"><span class="phone-country-picker" data-phone-country="employee-emergencyPhoneCountry"><button type="button" class="phone-country-button" aria-haspopup="listbox" aria-expanded="false"><span class="phone-flag"><img class="phone-flag-image" src="https://flagcdn.com/w40/br.png" srcset="https://flagcdn.com/w80/br.png 2x" alt="" loading="lazy" data-flag-code="BR"></span><span class="phone-country-code">+55</span><span class="phone-chevron">▾</span></button><span class="phone-country-menu" role="listbox"><input class="phone-country-search" type="search" placeholder="Buscar país..." aria-label="Buscar país"></span></span><input id="employee-emergencyPhone" inputmode="tel" placeholder="00 00000-0000"></span>
                   </label>
                   <label class="contact-email">Email Pessoal<input id="employee-personalEmail" type="email"></label>
                   <label class="contact-email">Email Empresarial<input id="employee-businessEmail" type="email"></label>
@@ -214,8 +222,20 @@
               <article class="panel dossier-card dossier-wide contract-card">
                 <div class="panel-heading"><div><h2>Dados contratuais</h2></div></div>
                 <div class="contract-grid">
-                  <label class="required-field contract-department">Departamento<input required id="employee-department" list="department-options" placeholder="Pesquisar"></label>
-                  <label class="required-field contract-role">Cargo<input required id="employee-role" list="role-options" placeholder="Pesquisar"></label>
+                  <label class="required-field contract-department">Departamento
+                    <span class="combo" data-combo="departments">
+                      <input required id="employee-department" placeholder="Pesquisar departamento" autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="combo-departments-menu">
+                      <button type="button" class="combo-toggle" tabindex="-1" aria-label="Ver os departamentos cadastrados">▾</button>
+                      <span class="combo-menu" id="combo-departments-menu" role="listbox"></span>
+                    </span>
+                  </label>
+                  <label class="required-field contract-role">Cargo
+                    <span class="combo" data-combo="roles">
+                      <input required id="employee-role" placeholder="Pesquisar cargo" autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="combo-roles-menu">
+                      <button type="button" class="combo-toggle" tabindex="-1" aria-label="Ver os cargos cadastrados">▾</button>
+                      <span class="combo-menu" id="combo-roles-menu" role="listbox"></span>
+                    </span>
+                  </label>
                   <label class="contract-type">Tipo de contrato<select id="employee-contract"><option>CLT</option><option>Estágio</option><option>PJ</option><option>Temporário</option></select></label>
                   <label class="contract-level">Unidade<select id="employee-level"><option value="">Pesquisar</option><option>Júnior</option><option>Pleno</option><option>Sênior</option></select></label>
                   <label class="contract-shift">Turno<input id="employee-shift"></label>
@@ -224,7 +244,13 @@
                   <label class="required-field contract-admission">Data de admissão<input required id="employee-admission" type="date"></label>
                   <label class="contract-probation">Período de experiência<input id="employee-probation" placeholder="Período em dias"></label>
                   <label class="contract-registration">Matrícula<input id="employee-registration"></label>
-                  <label class="contract-manager">Superior direto<input id="employee-manager" list="manager-options" placeholder="Superior direto"></label>
+                  <label class="contract-manager">Superior direto
+                    <span class="combo" data-combo="managers">
+                      <input id="employee-manager" placeholder="Pesquisar superior direto" autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="combo-managers-menu">
+                      <button type="button" class="combo-toggle" tabindex="-1" aria-label="Ver os superiores diretos cadastrados">▾</button>
+                      <span class="combo-menu" id="combo-managers-menu" role="listbox"></span>
+                    </span>
+                  </label>
                   <label class="required-field contract-hierarchy">Grau hierárquico<select id="employee-hierarchy"><option value="">Pesquisar</option><option>Júnior</option><option>Pleno</option><option>Sênior</option><option>Coordenação</option><option>Gerência</option><option>Diretoria</option></select></label>
                   <label class="contract-date">Data do contrato<input id="employee-contractDate" type="date"></label>
                   <label class="contract-duration">Duração do contrato<input id="employee-contractDuration"></label>
@@ -369,20 +395,30 @@
           </div>
         </section>
         <section id="novo-departamento" class="tab-panel panel placeholder-panel settings-entry-panel hidden">
-          <div class="settings-page-heading"><div><h2>Departamentos</h2></div><div class="settings-page-actions"><button type="button" class="button secondary" data-settings-back>Voltar</button></div></div>
+          <div class="settings-page-heading"><div><h2>Departamentos</h2></div><div class="settings-page-actions"><button type="button" class="button primary" data-settings-focus="departments">+ Novo departamento</button><button type="button" class="button secondary" data-settings-back>Voltar</button></div></div>
+          <form class="settings-create-form" data-settings-form="departments">
+            <label>Novo departamento<input required type="text" placeholder="Ex.: Financeiro" aria-label="Nome do novo departamento"></label>
+            <span class="settings-form-hint">Pressione Enter para adicionar</span>
+          </form>
           <div class="settings-list settings-page-list" id="departments-list"></div>
         </section>
         <section id="novo-cargo" class="tab-panel panel placeholder-panel settings-entry-panel hidden">
-          <div class="settings-page-heading"><div><h2>Cargos</h2></div><div class="settings-page-actions"><button type="button" class="button secondary" data-settings-back>Voltar</button></div></div>
+          <div class="settings-page-heading"><div><h2>Cargos</h2></div><div class="settings-page-actions"><button type="button" class="button primary" data-settings-focus="roles">+ Novo cargo</button><button type="button" class="button secondary" data-settings-back>Voltar</button></div></div>
+          <form class="settings-create-form" data-settings-form="roles">
+            <label>Novo cargo<input required type="text" placeholder="Ex.: Analista de RH" aria-label="Nome do novo cargo"></label>
+            <span class="settings-form-hint">Pressione Enter para adicionar</span>
+          </form>
           <div class="settings-list settings-page-list" id="roles-list"></div>
         </section>
         <section id="novo-superior" class="tab-panel panel placeholder-panel settings-entry-panel hidden">
-          <div class="settings-page-heading"><div><h2>Superiores diretos</h2></div><div class="settings-page-actions"><button type="button" class="button secondary" data-settings-back>Voltar</button></div></div>
+          <div class="settings-page-heading"><div><h2>Superiores diretos</h2></div><div class="settings-page-actions"><button type="button" class="button primary" data-settings-focus="managers">+ Novo superior</button><button type="button" class="button secondary" data-settings-back>Voltar</button></div></div>
+          <form class="settings-create-form" data-settings-form="managers">
+            <label>Novo superior direto<input required type="text" placeholder="Ex.: Maria Silva" aria-label="Nome do novo superior direto"></label>
+            <span class="settings-form-hint">Pressione Enter para adicionar</span>
+          </form>
           <div class="settings-list settings-page-list" id="managers-list"></div>
         </section>
-        <datalist id="department-options"></datalist>
-        <datalist id="role-options"></datalist>
-        <datalist id="manager-options"></datalist>
+        <!-- Departamentos, cargos e superiores agora usam .combo (ver app.js). -->
       </main>
     </div>
 
@@ -472,9 +508,16 @@
     </dialog>
     <dialog id="employee-success-dialog" class="success-dialog">
       <form>
-        <div class="success-dialog-icon" aria-hidden="true">✓</div>
+        <img class="zuzu success-dialog-zuzu zuzu-anim-celebrate" src="brand/mascote/zuzu-festejando.png" alt="Zuzu comemorando" loading="lazy">
         <h2>Colaborador salvo com sucesso!</h2>
         <div class="dialog-actions"><button type="button" class="button primary" id="employee-success-continue">Continuar</button></div>
+      </form>
+    </dialog>
+    <dialog id="settings-success-dialog" class="success-dialog">
+      <form>
+        <img class="zuzu success-dialog-zuzu zuzu-anim-celebrate" src="brand/mascote/zuzu-joinha.png" alt="Zuzu aprovando com joinha" loading="lazy">
+        <h2>Cadastro salvo com sucesso!</h2>
+        <div class="dialog-actions"><button type="button" class="button primary" id="settings-success-continue">Continuar</button></div>
       </form>
     </dialog>
     <script src="app.js"></script>
