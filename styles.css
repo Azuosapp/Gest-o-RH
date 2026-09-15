@@ -32,6 +32,14 @@ button { cursor: pointer; }
 .nav-subitem { border: 1px solid transparent; padding: 10px 12px; font-size: 12px; }
 .nav-subitem.active { color: #fff; background: rgba(255,255,255,.13); border-color: var(--yellow); box-shadow: 0 0 0 1px rgba(245,197,24,.15); }
 .nav-subitem.active .nav-icon { color: var(--yellow); }
+.employee-list-filters { grid-template-columns: 2fr 1fr 1fr; }
+.employee-directory { padding: 24px; }
+.employee-list { display: grid; gap: 10px; }
+.employee-list-row { display: grid; grid-template-columns: minmax(0, 1.4fr) 1fr 1fr 1fr auto; gap: 15px; align-items: center; border: 1px solid var(--line); border-radius: 10px; padding: 14px 15px; background: #fbfcff; }
+.employee-list-row strong, .employee-list-row span { display: block; }
+.employee-list-row strong { color: var(--navy); font-size: 13px; }
+.employee-list-row span { color: var(--muted); font-size: 11px; margin-top: 4px; }
+.employee-list-status { display: inline-flex; width: fit-content; border-radius: 20px; padding: 5px 9px; color: #146f4c; background: #def7eb; font-size: 10px; font-weight: 750; }
 .nav-section-label { color: #7189bc; font-size: 10px; text-transform: uppercase; letter-spacing: .12em; font-weight: 800; padding: 27px 14px 9px; }
 .sidebar-footer { color: #91a0ba; font-size: 11px; margin-top: auto; padding: 14px 10px 0; }
 .user-card { display: flex; align-items: center; gap: 9px; border-top: 1px solid rgba(255,255,255,.12); padding-top: 18px; }
@@ -196,6 +204,7 @@ dialog form { padding: 27px; }
   .vacation-hero { align-items: flex-start; flex-direction: column; }
   .vacation-filters { grid-template-columns: 1fr; }
   .filters { grid-template-columns: 1fr; }
+  .employee-list-filters { grid-template-columns: 1fr; }
   .form-grid { grid-template-columns: 1fr; }
   .full-width { grid-column: auto; }
   .dossier-toolbar { align-items: stretch; flex-direction: column; }
@@ -207,4 +216,5 @@ dialog form { padding: 27px; }
   .documents-actions select, .document-filters input { min-width: 0; }
   .document-card { grid-template-columns: 1fr; }
   .document-card-actions { flex-wrap: wrap; }
+  .employee-list-row { grid-template-columns: 1fr; gap: 8px; }
 }

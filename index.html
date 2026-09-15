@@ -17,6 +17,9 @@
           <a class="nav-item" href="#candidatos" data-tab="candidatos"><span class="nav-icon">▦</span>Gestão de currículos</a>
           <div class="nav-group">
             <a class="nav-item active" href="#dossie" data-tab="dossie"><span class="nav-icon">▥</span>Dossiê do colaborador</a>
+            <div class="nav-subitems">
+              <a class="nav-item nav-subitem" href="#colaboradores" data-tab="colaboradores"><span class="nav-icon">☷</span>Lista de colaboradores</a>
+            </div>
           </div>
           <a class="nav-item" href="#ferias" data-tab="ferias"><span class="nav-icon">▧</span>Gestão de férias</a>
         </nav>
@@ -206,6 +209,21 @@
               </article>
             </div>
           </form>
+        </section>
+        <section id="colaboradores" class="tab-panel hidden">
+          <div class="dossier-toolbar">
+            <div><p class="eyebrow">Dossiê do colaborador</p><h2>Lista de colaboradores</h2><p class="muted">Consulte os cadastros e abra o dossiê completo de cada colaborador.</p></div>
+            <button type="button" class="button primary" id="new-employee-from-list">+ Novo colaborador</button>
+          </div>
+          <div class="filters employee-list-filters">
+            <input id="employee-list-search" type="search" placeholder="Buscar por nome, CPF, cargo ou departamento" aria-label="Buscar colaboradores">
+            <select id="employee-list-status-filter" aria-label="Filtrar colaboradores por status"><option value="">Todos os status</option></select>
+            <select id="employee-list-department-filter" aria-label="Filtrar colaboradores por departamento"><option value="">Todos os departamentos</option></select>
+          </div>
+          <article class="panel employee-directory">
+            <div class="panel-heading"><div><p class="eyebrow">Cadastros ativos</p><h2>Colaboradores cadastrados</h2></div><span class="muted" id="employee-list-count"></span></div>
+            <div id="employee-list" class="employee-list"></div>
+          </article>
         </section>
         <section id="relatorios" class="tab-panel panel placeholder-panel hidden">
           <p class="eyebrow">Indicadores</p><h2>Relatórios</h2>

@@ -368,6 +368,14 @@ function fillEmployeeForm(employee) {
   renderEmployeeRecords(employee);
 }
 
+function resetEmployeeForm() {
+  $("#employee-form").reset();
+  $("#employee-id").value = "";
+  $("#employee-contract").value = "CLT";
+  $("#employee-status").value = "Ativo";
+  renderEmployeeRecords({ documents: [], movements: [], trainings: [], feedbacks: [], medical: [] });
+}
+
 function renderEmployeeRecords(employee) {
   const list = (field, empty, renderer) => {
     const records = employee[field] || [];
@@ -394,7 +402,7 @@ function refreshEmployeePicker() {
   if (!filtered.length) {
     $("#employee-picker").innerHTML = `<option value="">Nenhum colaborador encontrado</option>`;
   }
-  $("#employee-picker").value = $("#employee-id").value || employees[0].id;
+  $("#employee-picker").value = $("#employee-id").value || "";
 }
 
 function setupEmployeeFilters() {
@@ -411,6 +419,11 @@ function saveEmployee() {
   localStorage.setItem("employees", JSON.stringify(employees));
   refreshEmployeePicker();
   refreshDocumentsEmployeePicker();
+  setupEmployeeFilters();
+  setupEmployeeListFilters();
+  renderEmployeeList();
+  resetEmployeeForm();
+  $("#employee-picker").value = "";
 }
 
 $("#new-employee").addEventListener("click", () => {
@@ -418,9 +431,55 @@ $("#new-employee").addEventListener("click", () => {
   employees.push(employee);
   localStorage.setItem("employees", JSON.stringify(employees));
   refreshEmployeePicker();
+  setupEmployeeFilters();
+  setupEmployeeListFilters();
   refreshDocumentsEmployeePicker();
   fillEmployeeForm(employee);
   $("#employee-name").focus();
+});
+
+function renderEmployeeList() {
+  const query = $("#employee-list-search").value.toLowerCase().trim();
+  const status = $("#employee-list-status-filter").value;
+  const department = $("#employee-list-department-filter").value;
+  const filtered = employees.filter((employee) => {
+    const values = [employee.name, employee.cpf, employee.role, employee.department, employee.unit, employee.email];
+    return (!query || values.some((value) => String(value || "").toLowerCase().includes(query)))
+      && (!status || employee.status === status)
+      && (!department || employee.department === department);
+  });
+  $("#employee-list-count").textContent = `${filtered.length} de ${employees.length} colaboradores`;
+  $("#employee-list").innerHTML = filtered.length ? filtered.map((employee) => `<div class="employee-list-row">
+    <div><strong>${escapeHtml(employee.name || "Sem nome")}</strong><span>${escapeHtml(employee.email || "E-mail não informado")}</span></div>
+    <div><span>Cargo</span><strong>${escapeHtml(employee.role || "Não informado")}</strong></div>
+    <div><span>Departamento</span><strong>${escapeHtml(employee.department || "Não informado")}</strong></div>
+    <div><span>Unidade</span><strong>${escapeHtml(employee.unit || "Não informado")}</strong></div>
+    <div><span class="employee-list-status">${escapeHtml(employee.status || "Ativo")}</span></div>
+    <button type="button" class="row-action" data-open-employee="${employee.id}">Abrir dossiê</button>
+  </div>`).join("") : `<div class="record-empty">Nenhum colaborador encontrado.</div>`;
+}
+
+function setupEmployeeListFilters() {
+  const departments = [...new Set(employees.map((employee) => employee.department).filter(Boolean))].sort();
+  $("#employee-list-status-filter").innerHTML = `<option value="">Todos os status</option>${["Ativo", "Férias", "Afastado", "Desligado"].map((status) => `<option>${status}</option>`).join("")}`;
+  $("#employee-list-department-filter").innerHTML = `<option value="">Todos os departamentos</option>${departments.map((department) => `<option>${escapeHtml(department)}</option>`).join("")}`;
+}
+
+$("#new-employee-from-list").addEventListener("click", () => {
+  resetEmployeeForm();
+  activateTab("dossie");
+  history.replaceState(null, "", "#dossie");
+  $("#employee-name").focus();
+});
+["#employee-list-search", "#employee-list-status-filter", "#employee-list-department-filter"].forEach((selector) => $(selector).addEventListener("input", renderEmployeeList));
+$("#employee-list").addEventListener("click", (event) => {
+  const employeeId = Number(event.target.dataset.openEmployee);
+  if (!employeeId) return;
+  const employee = employees.find((item) => item.id === employeeId);
+  if (!employee) return;
+  fillEmployeeForm(employee);
+  activateTab("dossie");
+  history.replaceState(null, "", "#dossie");
 });
 
 function addEmployeeRecord(field) {
@@ -459,7 +518,7 @@ $("#cancel-record").addEventListener("click", () => $("#record-dialog").close())
 
 $("#employee-picker").addEventListener("change", () => fillEmployeeForm(employees.find((employee) => employee.id === Number($("#employee-picker").value))));
 ["#employee-search", "#employee-status-filter", "#employee-department-filter"].forEach((selector) => $(selector).addEventListener("input", refreshEmployeePicker));
-$("#save-employee").addEventListener("click", (event) => { event.preventDefault(); saveEmployee(); alert("Cadastro do colaborador salvo."); });
+$("#save-employee").addEventListener("click", (event) => { event.preventDefault(); saveEmployee(); alert("Cadastro do colaborador salvo. O formulário foi limpo para um novo cadastro."); });
 ["documents", "movements", "trainings", "feedbacks", "medical"].forEach((field) => $(`#add-${field === "medical" ? "medical" : field.slice(0, -1)}`).addEventListener("click", () => addEmployeeRecord(field)));
 $("#dossie").addEventListener("click", (event) => {
   if (!event.target.classList.contains("remove-record")) return;
@@ -571,8 +630,10 @@ $("#vacation-list").addEventListener("click", (event) => {
 setupFilters();
 render();
 setupEmployeeFilters();
+setupEmployeeListFilters();
 refreshEmployeePicker();
 fillEmployeeForm(employees[0]);
+renderEmployeeList();
 refreshDocumentsEmployeePicker();
 refreshVacationEmployees();
 renderVacations();
