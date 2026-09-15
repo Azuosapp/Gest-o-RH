@@ -108,6 +108,14 @@ function renderDashboard() {
   const sourceCounts = sources.map((source) => ({ source, count: dashboardCandidates.filter((candidate) => candidate.source === source).length })).filter((item) => item.count > 0).sort((a, b) => b.count - a.count);
   const sourceMax = Math.max(...sourceCounts.map((item) => item.count), 1);
   $("#sources").innerHTML = sourceCounts.length ? sourceCounts.map(({ source, count }) => `<div class="source-row"><span>${source}</span><div class="source-bar"><div class="source-fill" style="width:${(count / sourceMax) * 100}%"></div></div><strong>${count}</strong></div>`).join("") : `<span class="muted">Ainda não há origens cadastradas.</span>`;
+  $("#home-date").textContent = new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
+  const activeEmployees = employees.filter((employee) => employee.status === "Ativo").length;
+  const documentsPending = employees.filter((employee) => !(employee.documentLibrary || []).length).length;
+  $("#home-pending-list").innerHTML = [
+    [`${waiting} currículo(s)`, "aguardando triagem", "candidatos"],
+    [`${activeEmployees} colaborador(es)`, "com status ativo", "dossie"],
+    [`${documentsPending} colaborador(es)`, "sem documentos na biblioteca", "documentos"]
+  ].map(([value, label, tab]) => `<button type="button" class="pending-item" data-home-tab="${tab}"><strong>${value}</strong><span>${label}</span></button>`).join("");
 }
 
 function getFilteredDashboardCandidates() {
@@ -190,6 +198,14 @@ $("#candidate-table").addEventListener("click", (event) => {
 $("#show-curriculum-dashboard").addEventListener("click", () => {
   activateTab("dashboard");
   history.replaceState(null, "", "#dashboard");
+});
+document.querySelectorAll("[data-home-tab]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const tab = button.dataset.homeTab;
+    activateTab(tab === "documentos" ? "dossie" : tab);
+    history.replaceState(null, "", `#${tab === "documentos" ? "dossie" : tab}`);
+    if (tab === "documentos") $("#documentos").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
 });
 $("#export-report").addEventListener("click", () => {
   const headers = ["Nome", "Telefone", "Vaga", "Origem", "Responsável", "Status", "Último contato"];
@@ -475,4 +491,4 @@ setupEmployeeFilters();
 refreshEmployeePicker();
 fillEmployeeForm(employees[0]);
 refreshDocumentsEmployeePicker();
-activateTab(location.hash.replace("#", "") || "dossie");
+activateTab(location.hash.replace("#", "") || "dashboard");
