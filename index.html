@@ -4,31 +4,42 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Gestão de Pessoas | Grupo Azuos</title>
+    <meta name="description" content="Sistema de gestão de pessoas do Grupo Azuos: recrutamento, colaboradores, férias e documentos.">
+    <meta name="theme-color" content="#142B69">
+    <link rel="icon" href="assets/brand/favicon.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap">
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="zuzu.css">
   </head>
   <body>
+    <a class="sr-only" href="#conteudo">Pular para o conteúdo</a>
     <div class="app-shell">
       <aside class="sidebar">
-        <div class="brand">
-          <img src="azuos-logo.svg" alt="Grupo Azuos - Gestão de talentos">
-        </div>
+        <a class="brand" href="#dashboard">
+          <img src="assets/brand/azuos-logo-oficial-white.png" alt="Grupo Azuos" width="283" height="80">
+          <span class="brand-sub">Gestão de pessoas</span>
+        </a>
         <nav class="nav">
-          <a class="nav-item" href="#dashboard" data-tab="dashboard"><span class="nav-icon">⌂</span>Início</a>
-          <a class="nav-item" href="#candidatos" data-tab="candidatos"><span class="nav-icon">▦</span>Gestão de currículos</a>
+          <a class="nav-item" href="#dashboard" data-tab="dashboard"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.2 8.4 10 3l6.8 5.4V16a1.2 1.2 0 0 1-1.2 1.2H4.4A1.2 1.2 0 0 1 3.2 16z"/><path d="M8 17.2v-5.4h4v5.4"/></svg>Início</a>
+          <a class="nav-item" href="#candidatos" data-tab="candidatos"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="6.5" r="3"/><path d="M2.6 16.2a5.6 5.6 0 0 1 8.5-4.3"/><circle cx="14" cy="13.6" r="2.8"/><path d="m16.2 15.8 1.8 1.8"/></svg>Gestão de currículos</a>
+          <a class="nav-item" href="#relatorios" data-tab="relatorios"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.4 2.6H5.8a1.7 1.7 0 0 0-1.7 1.7v11.4a1.7 1.7 0 0 0 1.7 1.7h8.4a1.7 1.7 0 0 0 1.7-1.7V7.2z"/><path d="M11.4 2.6v4.6h4.5"/><path d="M10 10.2v4M8.2 12.4 10 14.2l1.8-1.8"/></svg>Relatórios</a>
           <div class="nav-group nav-talent-group">
-            <button type="button" class="nav-item nav-group-toggle" id="talent-menu-toggle" aria-expanded="true"><span class="nav-icon">▥</span><span>Gestão de Talentos</span><span class="nav-chevron">⌃</span></button>
+            <button type="button" class="nav-item nav-group-toggle" id="talent-menu-toggle" aria-expanded="true"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7.4" cy="7" r="2.7"/><path d="M2.4 16.4a5 5 0 0 1 10 0"/><path d="M13.4 4.6a2.7 2.7 0 0 1 0 4.9M14.6 11.8a5 5 0 0 1 3 4.6"/></svg><span>Gestão de Talentos</span><span class="nav-chevron">⌃</span></button>
             <div class="nav-subitems">
-              <a class="nav-item nav-subitem" href="#colaboradores" data-tab="colaboradores"><span class="nav-icon">☷</span>Colaboradores</a>
-              <a class="nav-item nav-subitem" href="#ferias" data-tab="ferias"><span class="nav-icon">▧</span>Gestão de férias</a>
+              <a class="nav-item nav-subitem" href="#colaboradores" data-tab="colaboradores"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="4" width="15" height="12" rx="2"/><circle cx="7" cy="9.2" r="1.8"/><path d="M4.3 13.4a3 3 0 0 1 5.4 0M12 8.5h3.2M12 11.5h3.2"/></svg>Colaboradores</a>
+              <a class="nav-item nav-subitem" href="#ferias" data-tab="ferias"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.8" y="4.4" width="14.4" height="12.8" rx="2"/><path d="M2.8 8.2h14.4M6.6 2.8v3M13.4 2.8v3"/><circle cx="10" cy="12.6" r="2"/></svg>Gestão de férias</a>
             </div>
           </div>
         </nav>
         <div class="nav-section-label">Sistema</div>
         <nav class="nav">
           <div class="nav-group nav-settings-group">
-            <button type="button" class="nav-item nav-group-toggle" id="settings-menu-toggle" aria-expanded="true"><span class="nav-icon">⚙</span><span>Configurações</span><span class="nav-chevron">⌃</span></button>
+            <button type="button" class="nav-item nav-group-toggle" id="settings-menu-toggle" aria-expanded="true"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="2.6"/><path d="M16.1 12.1a1.4 1.4 0 0 0 .28 1.54l.05.05a1.65 1.65 0 1 1-2.34 2.34l-.05-.05a1.4 1.4 0 0 0-1.54-.28 1.4 1.4 0 0 0-.85 1.28v.14a1.65 1.65 0 1 1-3.3 0v-.07a1.4 1.4 0 0 0-.92-1.28 1.4 1.4 0 0 0-1.54.28l-.05.05a1.65 1.65 0 1 1-2.34-2.34l.05-.05a1.4 1.4 0 0 0 .28-1.54 1.4 1.4 0 0 0-1.28-.85h-.14a1.65 1.65 0 1 1 0-3.3h.07a1.4 1.4 0 0 0 1.28-.92 1.4 1.4 0 0 0-.28-1.54l-.05-.05a1.65 1.65 0 1 1 2.34-2.34l.05.05a1.4 1.4 0 0 0 1.54.28h.07a1.4 1.4 0 0 0 .85-1.28v-.14a1.65 1.65 0 0 1 3.3 0v.07a1.4 1.4 0 0 0 .85 1.28 1.4 1.4 0 0 0 1.54-.28l.05-.05a1.65 1.65 0 1 1 2.34 2.34l-.05.05a1.4 1.4 0 0 0-.28 1.54v.07a1.4 1.4 0 0 0 1.28.85h.14a1.65 1.65 0 0 1 0 3.3h-.07a1.4 1.4 0 0 0-1.28.85z"/></svg><span>Configurações</span><span class="nav-chevron">⌃</span></button>
             <div class="nav-subitems">
-              <a class="nav-item nav-subitem" href="#cadastro-configuracoes" data-tab="cadastro-configuracoes"><span class="nav-icon">▤</span>Cadastro</a>
+              <a class="nav-item nav-subitem" href="#cadastro-configuracoes" data-tab="cadastro-configuracoes"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 5.4h10.2M7 10h10.2M7 14.6h10.2"/><circle cx="3.4" cy="5.4" r="1"/><circle cx="3.4" cy="10" r="1"/><circle cx="3.4" cy="14.6" r="1"/></svg>Cadastro</a>
+              <a class="nav-item nav-subitem" href="#configuracoes" data-tab="configuracoes"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="10" cy="5.2" rx="6.2" ry="2.4"/><path d="M3.8 5.2v9.6c0 1.32 2.78 2.4 6.2 2.4s6.2-1.08 6.2-2.4V5.2"/><path d="M3.8 10c0 1.32 2.78 2.4 6.2 2.4s6.2-1.08 6.2-2.4"/></svg>Dados do sistema</a>
             </div>
           </div>
         </nav>
@@ -37,13 +48,7 @@
         </div>
       </aside>
 
-      <main class="main-content">
-        <header class="topbar">
-          <div>
-            <p class="eyebrow">Gestão de pessoas</p>
-            <h1>Gestão de Pessoas</h1>
-          </div>
-        </header>
+      <main class="main-content" id="conteudo">
 
         <section id="dashboard" class="tab-panel dashboard-section hidden">
           <div class="home-hero">
@@ -107,6 +112,7 @@
             <div class="candidates-heading-actions">
               <span class="muted" id="candidate-count"></span>
               <button type="button" class="button secondary small" id="show-curriculum-dashboard">Ver indicadores</button>
+              <button type="button" class="button primary small" id="new-candidate">+ Novo candidato</button>
             </div>
           </div>
           <div class="filters">
@@ -132,14 +138,14 @@
                   <th>Vaga</th>
                   <th>Origem</th>
                   <th>Responsável</th>
-                  <th>Status</th>
+                  <th>Fase no processo</th>
                   <th>Último contato</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody id="candidate-table"></tbody>
             </table>
-            <div class="empty-state hidden" id="empty-state">Nenhum candidato encontrado.</div>
+            <div class="empty-state hidden" id="empty-state">Nenhum candidato bate com esses filtros. Ajuste a busca ou cadastre um novo candidato.</div>
           </div>
         </section>
         <section id="vagas" class="tab-panel panel placeholder-panel hidden">
@@ -283,8 +289,8 @@
         </section>
         <section id="relatorios" class="tab-panel panel placeholder-panel hidden">
           <p class="eyebrow">Indicadores</p><h2>Relatórios</h2>
-          <p class="placeholder-copy">Os indicadores do funil podem ser exportados e compartilhados com os responsáveis pelas vagas.</p>
-          <button class="button secondary" id="export-report">Exportar dados</button>
+          <p class="placeholder-copy">A exportação respeita os filtros aplicados em Gestão de currículos. Para exportar só uma vaga ou um status, filtre lá e volte aqui.</p>
+          <button class="button primary" id="export-report">Exportar candidatos (CSV)</button>
         </section>
         <section id="documentos" class="dossier-documents hidden">
           <div class="documents-toolbar">
@@ -370,14 +376,17 @@
         </section>
         <section id="novo-departamento" class="tab-panel panel placeholder-panel settings-entry-panel hidden">
           <div class="settings-page-heading"><div><h2>Departamentos</h2></div><div class="settings-page-actions"><button type="button" class="button secondary" data-settings-back>Voltar</button></div></div>
+          <form class="settings-page-form" data-settings-form="departments"><input aria-label="Novo departamento" placeholder="Novo departamento" autocomplete="off"><button type="submit" class="button primary">Adicionar</button></form>
           <div class="settings-list settings-page-list" id="departments-list"></div>
         </section>
         <section id="novo-cargo" class="tab-panel panel placeholder-panel settings-entry-panel hidden">
           <div class="settings-page-heading"><div><h2>Cargos</h2></div><div class="settings-page-actions"><button type="button" class="button secondary" data-settings-back>Voltar</button></div></div>
+          <form class="settings-page-form" data-settings-form="roles"><input aria-label="Novo cargo" placeholder="Novo cargo" autocomplete="off"><button type="submit" class="button primary">Adicionar</button></form>
           <div class="settings-list settings-page-list" id="roles-list"></div>
         </section>
         <section id="novo-superior" class="tab-panel panel placeholder-panel settings-entry-panel hidden">
           <div class="settings-page-heading"><div><h2>Superiores diretos</h2></div><div class="settings-page-actions"><button type="button" class="button secondary" data-settings-back>Voltar</button></div></div>
+          <form class="settings-page-form" data-settings-form="managers"><input aria-label="Novo superior direto" placeholder="Novo superior direto" autocomplete="off"><button type="submit" class="button primary">Adicionar</button></form>
           <div class="settings-list settings-page-list" id="managers-list"></div>
         </section>
         <datalist id="department-options"></datalist>
@@ -478,5 +487,6 @@
       </form>
     </dialog>
     <script src="app.js"></script>
+    <script src="zuzu.js" defer></script>
   </body>
 </html>
