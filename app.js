@@ -145,6 +145,193 @@ function pickComboValue(combo, value) {
   input.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
+// =============================================================================
+// VENCIMENTO DO CONTRATO
+// Data do contrato + Duracao => Vencimento, calculado sozinho.
+// A duracao aceita texto livre: "60", "60 dias", "3 meses", "1 ano", "6 semanas".
+// Convencao CLT: o dia de inicio conta como o primeiro dia do contrato, entao
+// 90 dias a partir de 07/04/2026 vence em 05/07/2026 (inicio + 90 - 1 dia).
+// Vencimento digitado na mao manda: o calculo para de sobrescrever.
+// =============================================================================
+function parseContractDuration(raw) {
+  const texto = String(raw || "").trim().toLocaleLowerCase("pt-BR");
+  if (!texto) return null;
+  const match = texto.match(/(\d+)\s*([a-z\u00e0-\u00fc]*)/);
+  if (!match) return null;
+  const quantidade = Number(match[1]);
+  if (!Number.isFinite(quantidade) || quantidade <= 0) return null;
+  const unidade = match[2];
+  if (!unidade || unidade.startsWith("d")) return { quantidade, unidade: "dias" };
+  if (unidade.startsWith("sem")) return { quantidade, unidade: "semanas" };
+  if (unidade.startsWith("m")) return { quantidade, unidade: "meses" };
+  if (unidade.startsWith("a")) return { quantidade, unidade: "anos" };
+  return null;
+}
+
+// Soma meses sem estourar o mes: 31/01 + 1 mes cai em 28/02, nao em 03/03.
+function addMonthsUtc(data, meses) {
+  const dia = data.getUTCDate();
+  data.setUTCDate(1);
+  data.setUTCMonth(data.getUTCMonth() + meses);
+  const ultimoDia = new Date(Date.UTC(data.getUTCFullYear(), data.getUTCMonth() + 1, 0)).getUTCDate();
+  data.setUTCDate(Math.min(dia, ultimoDia));
+}
+
+function contractExpirationFrom(inicioIso, duracao) {
+  if (!inicioIso || !duracao) return "";
+  const [ano, mes, dia] = inicioIso.split("-").map(Number);
+  if (!ano || !mes || !dia) return "";
+  const data = new Date(Date.UTC(ano, mes - 1, dia));
+  if (Number.isNaN(data.getTime())) return "";
+  if (duracao.unidade === "dias") data.setUTCDate(data.getUTCDate() + duracao.quantidade);
+  else if (duracao.unidade === "semanas") data.setUTCDate(data.getUTCDate() + duracao.quantidade * 7);
+  else if (duracao.unidade === "meses") addMonthsUtc(data, duracao.quantidade);
+  else if (duracao.unidade === "anos") addMonthsUtc(data, duracao.quantidade * 12);
+  data.setUTCDate(data.getUTCDate() - 1); // o dia de inicio ja conta
+  return data.toISOString().slice(0, 10);
+}
+
+// Os dois periodos de experiencia usam exatamente a mesma logica, entao ficam
+// descritos aqui e o resto do codigo e generico.
+const PROBATION_PERIODS = [
+  {
+    chave: "1",
+    rotulo: "1\u00ba per\u00edodo",
+    inicio: "employee-contractDate",
+    duracao: "employee-contractDuration",
+    vencimento: "employee-contractExpiration",
+    dicaDuracao: "contract-duration-hint",
+    dicaVencimento: "contract-expiration-hint"
+  },
+  {
+    chave: "2",
+    rotulo: "2\u00ba per\u00edodo",
+    inicio: "employee-contractDate2",
+    duracao: "employee-contractDuration2",
+    vencimento: "employee-contractExpiration2",
+    dicaDuracao: "contract-duration2-hint",
+    dicaVencimento: "contract-expiration2-hint"
+  }
+];
+
+// Guarda o ultimo valor que o calculo escreveu em cada campo. O evento change
+// de um input chega depois de reescrevermos o campo, e sem essa comparacao o
+// eco seria confundido com edicao manual do usuario.
+const ultimoCalculado = {};
+
+function addDaysIso(iso, dias) {
+  if (!iso) return "";
+  const [ano, mes, dia] = iso.split("-").map(Number);
+  if (!ano || !mes || !dia) return "";
+  const data = new Date(Date.UTC(ano, mes - 1, dia));
+  if (Number.isNaN(data.getTime())) return "";
+  data.setUTCDate(data.getUTCDate() + dias);
+  return data.toISOString().slice(0, 10);
+}
+
+function updateProbationPeriod(periodo) {
+  const inicio = $(`#${periodo.inicio}`);
+  const vencimento = $(`#${periodo.vencimento}`);
+  const dicaDuracao = $(`#${periodo.dicaDuracao}`);
+  const dicaVencimento = $(`#${periodo.dicaVencimento}`);
+  const texto = $(`#${periodo.duracao}`).value.trim();
+  const duracao = parseContractDuration(texto);
+
+  dicaDuracao.className = "field-hint";
+  if (texto && !duracao) {
+    dicaDuracao.classList.add("error");
+    dicaDuracao.textContent = "N\u00e3o entendi. Use algo como 30 dias, 45 dias ou 2 meses.";
+  } else {
+    dicaDuracao.textContent = duracao ? `${duracao.quantidade} ${duracao.unidade}` : "";
+  }
+
+  dicaVencimento.className = "field-hint";
+  const calculado = contractExpirationFrom(inicio.value, duracao);
+  if (!calculado) {
+    // Sem dados para calcular: o que ja estiver no campo continua valendo.
+    dicaVencimento.textContent = duracao && !inicio.value ? `Informe o in\u00edcio do ${periodo.rotulo} para calcular.` : "";
+    return;
+  }
+  vencimento.value = calculado;
+  ultimoCalculado[periodo.vencimento] = calculado;
+  dicaVencimento.classList.add("calculated");
+  dicaVencimento.textContent = `Calculado: ${duracao.quantidade} ${duracao.unidade} a partir do in\u00edcio.`;
+}
+
+// O 2o periodo emenda no 1o: comeca no dia seguinte ao vencimento dele.
+function updateSecondPeriodStart() {
+  const periodo = PROBATION_PERIODS[1];
+  const inicio = $(`#${periodo.inicio}`);
+  const dica = $("#contract-date2-hint");
+  dica.className = "field-hint";
+  const proximo = addDaysIso($(`#${PROBATION_PERIODS[0].vencimento}`).value, 1);
+  if (!proximo) {
+    // Sem vencimento no 1o periodo, o que estiver no campo continua valendo.
+    dica.textContent = "";
+    return;
+  }
+  inicio.value = proximo;
+  ultimoCalculado[periodo.inicio] = proximo;
+  dica.classList.add("calculated");
+  dica.textContent = "Dia seguinte ao vencimento do 1\u00ba per\u00edodo.";
+}
+
+function updateProbationSchedule() {
+  updateProbationPeriod(PROBATION_PERIODS[0]);
+  updateSecondPeriodStart();
+  updateProbationPeriod(PROBATION_PERIODS[1]);
+}
+
+// Troca de colaborador: mostra o que veio salvo, sem dicas de calculo. Nada e
+// recalculado ate que alguem mexa num inicio ou numa duracao.
+function resetContractExpirationState() {
+  PROBATION_PERIODS.forEach((periodo) => {
+    ultimoCalculado[periodo.vencimento] = "";
+    [periodo.dicaDuracao, periodo.dicaVencimento].forEach((id) => {
+      $(`#${id}`).className = "field-hint";
+      $(`#${id}`).textContent = "";
+    });
+  });
+  ultimoCalculado[PROBATION_PERIODS[1].inicio] = "";
+  $("#contract-date2-hint").className = "field-hint";
+  $("#contract-date2-hint").textContent = "";
+}
+
+function setupContractExpiration() {
+  // Qualquer mudanca reprocessa os dois periodos, porque o 2o depende do 1o.
+  // O inicio do 2o periodo fica de fora: ele e um campo calculado e tem
+  // tratamento proprio em campoCalculado - reprocessar aqui sobrescreveria o
+  // valor no mesmo instante em que o usuario o digita.
+  const gatilhos = [
+    PROBATION_PERIODS[0].inicio,
+    PROBATION_PERIODS[0].duracao,
+    PROBATION_PERIODS[1].duracao
+  ];
+  gatilhos.forEach((id) => {
+    $(`#${id}`).addEventListener("input", updateProbationSchedule);
+    $(`#${id}`).addEventListener("change", updateProbationSchedule);
+  });
+
+  // Digitar na mao num campo calculado vale como ajuste pontual: fica ate a
+  // proxima mudanca de inicio ou duracao, que volta a mandar no valor.
+  const campoCalculado = (id, dicaId) => {
+    const campo = $(`#${id}`);
+    const editado = () => {
+      if (campo.value && campo.value === ultimoCalculado[id]) return; // eco do proprio calculo
+      if (!campo.value) { updateProbationSchedule(); return; }
+      $(`#${dicaId}`).className = "field-hint";
+      $(`#${dicaId}`).textContent = "Preenchido manualmente.";
+      // O ajuste manual precisa empurrar o que vem depois dele na corrente.
+      if (id === PROBATION_PERIODS[0].vencimento) updateSecondPeriodStart();
+      if (id !== PROBATION_PERIODS[1].vencimento) updateProbationPeriod(PROBATION_PERIODS[1]);
+    };
+    campo.addEventListener("input", editado);
+    campo.addEventListener("change", editado);
+  };
+  PROBATION_PERIODS.forEach((periodo) => campoCalculado(periodo.vencimento, periodo.dicaVencimento));
+  campoCalculado(PROBATION_PERIODS[1].inicio, "contract-date2-hint");
+}
+
 function setupCombos() {
   document.querySelectorAll(".combo").forEach((combo) => {
     const input = combo.querySelector("input");
@@ -336,8 +523,16 @@ function vacationRecords() {
   return employees.flatMap((employee) => (employee.vacationPeriods || []).map((period) => ({ ...period, employeeId: employee.id, employeeName: employee.name })));
 }
 
+// Diferenca em dias de calendario: hoje = 0, amanha = 1, ontem = -1.
+// A versao anterior media ate as 23:59:59 do dia alvo e arredondava pra cima,
+// entao algo que vencia hoje aparecia como "vence em 1 dia" e todo prazo saia
+// um dia maior. Comparar so as datas tira a influencia da hora atual.
 function daysUntil(date) {
-  return Math.ceil((new Date(`${date}T23:59:59`) - new Date()) / 86400000);
+  const [ano, mes, dia] = String(date || "").split("-").map(Number);
+  if (!ano || !mes || !dia) return NaN;
+  const agora = new Date();
+  const hoje = Date.UTC(agora.getFullYear(), agora.getMonth(), agora.getDate());
+  return Math.round((Date.UTC(ano, mes - 1, dia) - hoje) / 86400000);
 }
 
 function renderVacations() {
@@ -454,6 +649,7 @@ function renderDashboard() {
     [`${activeEmployees} colaborador(es)`, "com status ativo", "dossie"],
     [`${documentsPending} colaborador(es)`, "sem documentos na biblioteca", "documentos"]
   ].map(([value, label, tab]) => `<button type="button" class="pending-item" data-home-tab="${tab}"><strong>${value}</strong><span>${label}</span></button>`).join("");
+  renderProbationReminders();
 }
 
 function getFilteredDashboardCandidates() {
@@ -494,6 +690,48 @@ function renderTable() {
     <td><button class="row-action" data-edit="${candidate.id}">Editar</button></td>
   </tr>`).join("");
   $("#empty-state").classList.toggle("hidden", filtered.length > 0);
+}
+
+// =============================================================================
+// LEMBRETE DE VENCIMENTO DAS EXPERIENCIAS (pagina inicial)
+// Mostra quem esta com periodo de experiencia vencendo nos proximos 30 dias ou
+// vencido nos ultimos 30. Quando ha 2o periodo preenchido, ele e o prazo que
+// vale - o 1o ja foi decidido no momento em que prorrogaram.
+// =============================================================================
+const PROBATION_ALERT_AHEAD = 30;
+const PROBATION_ALERT_BEHIND = 30;
+
+function probationDeadlines() {
+  return employees.filter((employee) => employee.status !== "Desligado").map((employee) => {
+    const prorrogado = Boolean(employee.contractExpiration2);
+    const data = prorrogado ? employee.contractExpiration2 : employee.contractExpiration;
+    if (!data) return null;
+    const dias = daysUntil(data);
+    if (dias > PROBATION_ALERT_AHEAD || dias < -PROBATION_ALERT_BEHIND) return null;
+    return {
+      id: employee.id,
+      nome: employee.name || "Sem nome",
+      cargo: employee.role || "Cargo n\u00e3o informado",
+      rotulo: prorrogado ? "2\u00ba per\u00edodo" : "1\u00ba per\u00edodo",
+      data,
+      dias
+    };
+  }).filter(Boolean).sort((a, b) => a.data.localeCompare(b.data));
+}
+
+function renderProbationReminders() {
+  const itens = probationDeadlines();
+  const vencidos = itens.filter((item) => item.dias < 0).length;
+  $("#home-probation-count").textContent = itens.length
+    ? `${itens.length} em aten\u00e7\u00e3o${vencidos ? ` \u00b7 ${vencidos} vencido(s)` : ""}`
+    : "Pr\u00f3ximos 30 dias";
+  $("#home-probation-list").innerHTML = itens.length ? itens.map((item) => {
+    const estado = item.dias < 0 ? "vencido" : item.dias <= 7 ? "urgente" : "";
+    const prazo = item.dias < 0
+      ? `Venceu h\u00e1 ${Math.abs(item.dias)} dia(s)`
+      : item.dias === 0 ? "Vence hoje" : `Vence em ${item.dias} dia(s)`;
+    return `<button type="button" class="pending-item probation-item ${estado}" data-probation-employee="${item.id}" aria-label="Abrir ${escapeHtml(item.nome)}"><div><strong>${escapeHtml(item.nome)}</strong><span>${escapeHtml(item.cargo)} \u00b7 ${item.rotulo} at\u00e9 ${formatDate(item.data)}</span></div><b>${prazo}</b></button>`;
+  }).join("") : emptyState("Nenhuma experi\u00eancia vencendo nos pr\u00f3ximos 30 dias.", null);
 }
 
 function render() {
@@ -657,8 +895,9 @@ function fillEmployeeForm(employee) {
   if (!employee) return;
   $("#dossie").classList.add("dossier-editing");
   $("#employee-id").value = employee.id;
-  const fields = ["name", "cpf", "birth", "gender", "salutation", "ethnicity", "marital", "education", "course", "nationality", "birthplace", "role", "department", "manager", "level", "admission", "contract", "salary", "benefits", "status", "shift", "currency", "probation", "registration", "hierarchy", "contractDate", "contractDuration", "contractExpiration", "addressCountry", "addressCep", "addressStreet", "addressNumber", "addressNeighborhood", "addressCity", "addressState", "addressComplement"];
+  const fields = ["name", "cpf", "birth", "gender", "salutation", "ethnicity", "marital", "education", "course", "nationality", "birthplace", "role", "department", "manager", "admission", "contract", "salary", "benefits", "status", "probation", "hierarchy", "contractDate", "contractDuration", "contractExpiration", "contractDate2", "contractDuration2", "contractExpiration2", "addressCountry", "addressCep", "addressStreet", "addressNumber", "addressNeighborhood", "addressCity", "addressState", "addressComplement"];
   fields.forEach((field) => { $(`#employee-${field}`).value = employee[field] || ""; });
+  resetContractExpirationState();
   $("#employee-cellphone").value = employee.cellphone || "";
   $("#employee-telephone").value = employee.telephone || employee.phone || "";
   $("#employee-emergencyPhone").value = employee.emergencyPhone || "";
@@ -680,8 +919,8 @@ function resetEmployeeForm() {
   $("#employee-id").value = "";
   ["employee-cellphoneCountry", "employee-telephoneCountry", "employee-emergencyPhoneCountry"].forEach((id) => setPhoneCountry(id, "BR"));
   $("#employee-contract").value = "CLT";
-  $("#employee-currency").value = "BRL";
   $("#employee-status").value = "Ativo";
+  resetContractExpirationState();
   renderEmployeeRecords({ documents: [], movements: [], trainings: [], feedbacks: [], medical: [] });
 }
 
@@ -702,7 +941,7 @@ function refreshEmployeePicker() {
   const status = $("#employee-status-filter").value;
   const department = $("#employee-department-filter").value;
   const filtered = employees.filter((employee) => {
-    const values = [employee.name, employee.cpf, employee.email, employee.role, employee.department, employee.level, employee.unit];
+    const values = [employee.name, employee.cpf, employee.email, employee.role, employee.department, employee.level, employee.unit, employee.hierarchy];
     return (!query || values.some((value) => String(value || "").toLowerCase().includes(query)))
       && (!status || employee.status === status)
       && (!department || employee.department === department);
@@ -723,7 +962,7 @@ function setupEmployeeFilters() {
 function saveEmployee(onSaved) {
   const id = Number($("#employee-id").value);
   const employee = employees.find((item) => item.id === id) || { id, documents: [], documentLibrary: [], vacationPeriods: [], movements: [], trainings: [], feedbacks: [], medical: [] };
-  ["name", "cpf", "birth", "gender", "salutation", "ethnicity", "marital", "education", "course", "nationality", "birthplace", "role", "department", "manager", "level", "admission", "contract", "salary", "benefits", "status", "shift", "currency", "probation", "registration", "hierarchy", "contractDate", "contractDuration", "contractExpiration", "addressCountry", "addressCep", "addressStreet", "addressNumber", "addressNeighborhood", "addressCity", "addressState", "addressComplement"].forEach((field) => { employee[field] = $(`#employee-${field}`).value.trim(); });
+  ["name", "cpf", "birth", "gender", "salutation", "ethnicity", "marital", "education", "course", "nationality", "birthplace", "role", "department", "manager", "admission", "contract", "salary", "benefits", "status", "probation", "hierarchy", "contractDate", "contractDuration", "contractExpiration", "contractDate2", "contractDuration2", "contractExpiration2", "addressCountry", "addressCep", "addressStreet", "addressNumber", "addressNeighborhood", "addressCity", "addressState", "addressComplement"].forEach((field) => { employee[field] = $(`#employee-${field}`).value.trim(); });
   employee.cellphone = $("#employee-cellphone").value.trim();
   employee.telephone = $("#employee-telephone").value.trim();
   employee.emergencyPhone = $("#employee-emergencyPhone").value.trim();
@@ -768,7 +1007,7 @@ function renderEmployeeList() {
   const status = $("#employee-list-status-filter").value;
   const department = $("#employee-list-department-filter").value;
   const filtered = employees.filter((employee) => {
-    const values = [employee.name, employee.cpf, employee.role, employee.department, employee.level, employee.unit, employee.email];
+    const values = [employee.name, employee.cpf, employee.role, employee.department, employee.level, employee.unit, employee.hierarchy, employee.email];
     return (!query || values.some((value) => String(value || "").toLowerCase().includes(query)))
       && (!status || employee.status === status)
       && (!department || employee.department === department);
@@ -781,7 +1020,7 @@ function renderEmployeeList() {
       <div class="employee-list-cell" data-label="Cargo"><strong>${escapeHtml(employee.role || "Não informado")}</strong></div>
       <div class="employee-list-cell" data-label="Departamento"><strong>${escapeHtml(employee.department || "Não informado")}</strong></div>
       <div class="employee-list-cell" data-label="Data de admissão"><strong>${formatDate(employee.admission)}</strong></div>
-      <div class="employee-list-cell" data-label="Nível"><strong>${escapeHtml(employee.level || employee.unit || "Não informado")}</strong></div>
+      <div class="employee-list-cell" data-label="Nível"><strong>${escapeHtml(employee.level || employee.unit || employee.hierarchy || "Não informado")}</strong></div>
       <div class="employee-list-cell" data-label="Status"><span class="employee-list-status">${escapeHtml(employee.status || "Ativo")}</span></div>
     </div>`;
   }).join("") : emptyState("Nenhum colaborador encontrado.", "lupa");
@@ -805,6 +1044,14 @@ $("#employee-list").addEventListener("click", (event) => {
   const employeeId = Number(row?.dataset.openEmployee);
   if (!employeeId) return;
   const employee = employees.find((item) => item.id === employeeId);
+  if (!employee) return;
+  fillEmployeeForm(employee);
+  activateTab("dossie");
+  history.replaceState(null, "", "#dossie");
+});
+$("#home-probation-list").addEventListener("click", (event) => {
+  const item = event.target.closest("[data-probation-employee]");
+  const employee = employees.find((candidato) => candidato.id === Number(item?.dataset.probationEmployee));
   if (!employee) return;
   fillEmployeeForm(employee);
   activateTab("dossie");
@@ -894,7 +1141,7 @@ $("#dossie").addEventListener("click", (event) => {
 
 function refreshDocumentsEmployeePicker() {
   const query = $("#documents-employee-search").value.toLowerCase().trim();
-  const filtered = employees.filter((employee) => [employee.name, employee.role, employee.department, employee.level, employee.unit].some((value) => String(value || "").toLowerCase().includes(query)));
+  const filtered = employees.filter((employee) => [employee.name, employee.role, employee.department, employee.level, employee.unit, employee.hierarchy].some((value) => String(value || "").toLowerCase().includes(query)));
   $("#documents-employee-picker").innerHTML = filtered.length
     ? filtered.map((employee) => `<option value="${employee.id}">${escapeHtml(employee.name)}</option>`).join("")
     : `<option value="">Nenhum colaborador encontrado</option>`;
@@ -1110,6 +1357,7 @@ document.querySelectorAll(".settings-list").forEach((list) => {
   });
 });
 setupCombos();
+setupContractExpiration();
 refreshSettingsLists();
 setupEmployeeFilters();
 setupEmployeeListFilters();

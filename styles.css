@@ -212,6 +212,14 @@ h2 { font-size: 17px; }
 .pending-list { display: grid; gap: 9px; }
 .pending-item { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 9px; background: #fbfcff; border: 1px solid var(--line); color: var(--ink); font-size: 12px; }
 .pending-item strong { color: var(--navy); }
+/* Lembrete de vencimento das experiencias na pagina inicial. */
+.probation-panel { margin-bottom: 20px; }
+.probation-count { color: var(--muted); font-size: 11px; font-weight: 700; white-space: nowrap; }
+.probation-item { align-items: flex-start; width: 100%; text-align: left; }
+.probation-item span { display: block; color: var(--muted); font-size: 11px; margin-top: 4px; }
+.probation-item b { color: var(--orange); font-size: 11px; white-space: nowrap; }
+.probation-item.urgente b, .probation-item.vencido b { color: var(--red); }
+.probation-item.vencido { border-color: #f1cccc; background: #fff8f8; }
 .vacation-hero { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 25px 28px; margin-bottom: 18px; border-radius: 15px; color: #fff; background: linear-gradient(120deg, #0a1a4a 0%, #1b3a8c 68%, #2b5ce6 100%); }
 .vacation-hero .eyebrow { color: var(--yellow); }
 .vacation-hero h2 { color: #fff; font-size: 25px; margin-bottom: 8px; }
@@ -356,6 +364,9 @@ tbody tr:hover { background: #fafcff; }
 .address-state { grid-column: span 1; }
 .address-complement { grid-column: span 3; }
 .address-status { display: block; min-height: 14px; margin-top: 4px; color: var(--muted); font-size: 10px; font-weight: 500; }
+.field-hint { display: block; min-height: 13px; margin-top: 4px; color: var(--muted); font-size: 10px; font-weight: 500; }
+.field-hint.calculated { color: var(--blue); font-weight: 700; }
+.field-hint.error { color: var(--red); font-weight: 600; }
 .address-status.error { color: var(--red); }
 .contract-card { padding: 21px; }
 .contract-card .panel-heading { margin-bottom: 17px; }
@@ -364,11 +375,14 @@ tbody tr:hover { background: #fafcff; }
 .contract-grid label { color: var(--muted); font-size: 11px; font-weight: 700; }
 .contract-grid input, .contract-grid select, .contract-grid textarea { margin-top: 6px; }
 .contract-department, .contract-role { grid-column: span 3; }
-.contract-type, .contract-level { grid-column: span 3; }
-.contract-shift, .contract-currency, .contract-salary,
-.contract-admission, .contract-probation, .contract-registration { grid-column: span 2; }
+.contract-type { grid-column: span 3; }
+.contract-salary,
+.contract-admission, .contract-probation { grid-column: span 2; }
 .contract-manager, .contract-hierarchy { grid-column: span 3; }
 .contract-date, .contract-duration, .contract-expiration { grid-column: span 2; }
+/* Titulo de grupo dentro do grid (1o e 2o periodo de experiencia). */
+.contract-subheading { grid-column: 1 / -1; margin-bottom: -6px; color: var(--navy); font-size: 12px; font-weight: 800; }
+.contract-subheading + .contract-date { margin-top: 0; }
 .contract-status { grid-column: span 2; }
 .contract-benefits { grid-column: span 4; }
 .small { padding: 8px 11px; font-size: 11px; }

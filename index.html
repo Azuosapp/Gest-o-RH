@@ -83,6 +83,13 @@
               <div id="home-pending-list" class="pending-list"></div>
             </article>
           </div>
+          <article class="panel probation-panel">
+            <div class="panel-heading">
+              <div><p class="eyebrow">Lembrete</p><h2>Vencimento de experiências</h2></div>
+              <span class="probation-count" id="home-probation-count"></span>
+            </div>
+            <div id="home-probation-list" class="pending-list"></div>
+          </article>
           <div class="content-grid">
             <article class="panel">
               <div class="panel-heading">
@@ -237,13 +244,9 @@
                     </span>
                   </label>
                   <label class="contract-type">Tipo de contrato<select id="employee-contract"><option>CLT</option><option>Estágio</option><option>PJ</option><option>Temporário</option></select></label>
-                  <label class="contract-level">Unidade<select id="employee-level"><option value="">Pesquisar</option><option>Júnior</option><option>Pleno</option><option>Sênior</option></select></label>
-                  <label class="contract-shift">Turno<input id="employee-shift"></label>
-                  <label class="contract-currency">Moeda<select id="employee-currency"><option>BRL</option><option>USD</option><option>EUR</option></select></label>
                   <label class="contract-salary">Salário<input id="employee-salary" placeholder="0,00"></label>
                   <label class="required-field contract-admission">Data de admissão<input required id="employee-admission" type="date"></label>
                   <label class="contract-probation">Período de experiência<input id="employee-probation" placeholder="Período em dias"></label>
-                  <label class="contract-registration">Matrícula<input id="employee-registration"></label>
                   <label class="contract-manager">Superior direto
                     <span class="combo" data-combo="managers">
                       <input id="employee-manager" placeholder="Pesquisar superior direto" autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="combo-managers-menu">
@@ -252,9 +255,14 @@
                     </span>
                   </label>
                   <label class="required-field contract-hierarchy">Grau hierárquico<select id="employee-hierarchy"><option value="">Pesquisar</option><option>Júnior</option><option>Pleno</option><option>Sênior</option><option>Coordenação</option><option>Gerência</option><option>Diretoria</option></select></label>
-                  <label class="contract-date">Data do contrato<input id="employee-contractDate" type="date"></label>
-                  <label class="contract-duration">Duração do contrato<input id="employee-contractDuration"></label>
-                  <label class="contract-expiration">Vencimento do contrato<input id="employee-contractExpiration" type="date"></label>
+                  <div class="contract-subheading">1º período de experiência</div>
+                  <label class="contract-date">Início<input id="employee-contractDate" type="date"></label>
+                  <label class="contract-duration">Duração<input id="employee-contractDuration" placeholder="30 dias, 45 dias, 2 meses..."><span class="field-hint" id="contract-duration-hint"></span></label>
+                  <label class="contract-expiration">Vencimento<input id="employee-contractExpiration" type="date"><span class="field-hint" id="contract-expiration-hint"></span></label>
+                  <div class="contract-subheading">2º período de experiência</div>
+                  <label class="contract-date">Início<input id="employee-contractDate2" type="date"><span class="field-hint" id="contract-date2-hint"></span></label>
+                  <label class="contract-duration">Duração<input id="employee-contractDuration2" placeholder="30 dias, 45 dias, 2 meses..."><span class="field-hint" id="contract-duration2-hint"></span></label>
+                  <label class="contract-expiration">Vencimento<input id="employee-contractExpiration2" type="date"><span class="field-hint" id="contract-expiration2-hint"></span></label>
                   <label class="contract-status">Status<select id="employee-status"><option>Ativo</option><option>Férias</option><option>Afastado</option><option>Desligado</option></select></label>
                   <label class="contract-benefits">Benefícios<textarea id="employee-benefits" rows="2" placeholder="Vale-alimentação, plano de saúde..."></textarea></label>
                 </div>
