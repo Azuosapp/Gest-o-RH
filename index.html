@@ -389,7 +389,10 @@
           <button class="button secondary" id="clear-data">Restaurar dados de demonstração</button>
         </section>
         <section id="cadastro-configuracoes" class="tab-panel panel placeholder-panel hidden">
-          <p class="eyebrow">Configurações</p><h2>Cadastro</h2>
+          <div class="settings-page-heading">
+            <div><p class="eyebrow">Configurações</p><h2>Cadastro</h2></div>
+            <div class="settings-page-actions"><button type="button" class="button primary" id="open-new-list">+ Nova opção de cadastro</button></div>
+          </div>
           <p class="placeholder-copy">Gerencie as opções utilizadas nos cadastros de colaboradores, contratos e demais rotinas do sistema.</p>
           <div class="settings-cards">
             <article class="settings-card settings-list-card settings-navigation-card" data-settings-page="novo-departamento" role="button" tabindex="0">
@@ -400,14 +403,6 @@
             </article>
             <article class="settings-card settings-list-card settings-navigation-card" data-settings-page="novo-superior" role="button" tabindex="0">
               <div><strong>Superiores diretos</strong><span>Cadastre os responsáveis que poderão ser vinculados.</span></div>
-            </article>
-            <article class="settings-card settings-new-list-card">
-              <div><strong>Nova opção de cadastro</strong><span>Crie sua própria lista, como Turnos, Centros de custo ou Benefícios.</span></div>
-              <form class="settings-list-form" id="new-list-form">
-                <input required type="text" id="new-list-name" placeholder="Ex.: Turnos" aria-label="Nome da nova opção de cadastro" autocomplete="off">
-                <button type="submit" class="button primary">Criar</button>
-              </form>
-              <p class="settings-new-list-error" id="new-list-error" role="alert"></p>
             </article>
           </div>
         </section>
@@ -536,6 +531,19 @@
         <img class="zuzu success-dialog-zuzu zuzu-anim-celebrate" src="brand/mascote/zuzu-festejando.png" alt="Zuzu comemorando" loading="lazy">
         <h2>Colaborador salvo com sucesso!</h2>
         <div class="dialog-actions"><button type="button" class="button primary" id="employee-success-continue">Continuar</button></div>
+      </form>
+    </dialog>
+    <dialog id="new-list-dialog">
+      <form id="new-list-form">
+        <div class="dialog-heading">
+          <div><p class="eyebrow">Cadastro</p><h2>Nova opção de cadastro</h2></div>
+          <button type="button" class="icon-button" id="close-new-list" aria-label="Fechar">×</button>
+        </div>
+        <div class="form-grid single">
+          <label>Nome da opção<input required type="text" id="new-list-name" placeholder="Ex.: Turnos, Centros de custo, Benefícios" autocomplete="off"></label>
+        </div>
+        <p class="settings-new-list-error" id="new-list-error" role="alert"></p>
+        <div class="dialog-actions"><button type="button" class="button secondary" id="cancel-new-list">Cancelar</button><button type="submit" class="button primary">Criar</button></div>
       </form>
     </dialog>
     <dialog id="settings-success-dialog" class="success-dialog">

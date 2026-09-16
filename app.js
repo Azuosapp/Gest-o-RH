@@ -354,7 +354,6 @@ function customListAtual() {
 
 function renderCustomListCards() {
   const grade = document.querySelector(".settings-cards");
-  const novoCard = document.querySelector(".settings-new-list-card");
   grade.querySelectorAll(".settings-custom-card").forEach((card) => card.remove());
   customLists.forEach((lista) => {
     const card = document.createElement("article");
@@ -368,7 +367,7 @@ function renderCustomListCards() {
     card.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") { event.preventDefault(); abrir(); }
     });
-    grade.insertBefore(card, novoCard);
+    grade.appendChild(card);
   });
 }
 
@@ -420,12 +419,23 @@ function addCustomListItem(valor) {
 function setupCustomLists() {
   renderCustomListCards();
 
+  const fecharNovaLista = () => {
+    $("#new-list-dialog").close();
+    $("#new-list-name").value = "";
+    $("#new-list-error").textContent = "";
+  };
+  $("#open-new-list").addEventListener("click", () => {
+    $("#new-list-error").textContent = "";
+    $("#new-list-dialog").showModal();
+    $("#new-list-name").focus();
+  });
+  $("#close-new-list").addEventListener("click", fecharNovaLista);
+  $("#cancel-new-list").addEventListener("click", fecharNovaLista);
   $("#new-list-form").addEventListener("submit", (event) => {
     event.preventDefault();
-    const campo = $("#new-list-name");
-    const lista = criarCustomList(campo.value);
+    const lista = criarCustomList($("#new-list-name").value);
     if (!lista) return;
-    campo.value = "";
+    fecharNovaLista();
     abrirCustomList(lista.id);
   });
 
