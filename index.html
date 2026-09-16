@@ -20,6 +20,7 @@
         <nav class="nav">
           <a class="nav-item" href="#dashboard" data-tab="dashboard"><span class="nav-icon">⌂</span>Início</a>
           <a class="nav-item" href="#candidatos" data-tab="candidatos"><span class="nav-icon">▦</span>Gestão de currículos</a>
+          <a class="nav-item" href="#relatorios" data-tab="relatorios"><span class="nav-icon">⇩</span>Relatórios</a>
           <div class="nav-group nav-talent-group">
             <button type="button" class="nav-item nav-group-toggle" id="talent-menu-toggle" aria-expanded="true"><span class="nav-icon">▥</span><span>Gestão de Talentos</span><span class="nav-chevron">⌃</span></button>
             <div class="nav-subitems">
@@ -35,6 +36,7 @@
             <button type="button" class="nav-item nav-group-toggle" id="settings-menu-toggle" aria-expanded="true"><span class="nav-icon">⚙</span><span>Configurações</span><span class="nav-chevron">⌃</span></button>
             <div class="nav-subitems">
               <a class="nav-item nav-subitem" href="#cadastro-configuracoes" data-tab="cadastro-configuracoes"><span class="nav-icon">▤</span>Cadastro</a>
+              <a class="nav-item nav-subitem" href="#configuracoes" data-tab="configuracoes"><span class="nav-icon">◫</span>Dados do sistema</a>
             </div>
           </div>
         </nav>
@@ -123,6 +125,7 @@
             <div class="candidates-heading-actions">
               <span class="muted" id="candidate-count"></span>
               <button type="button" class="button secondary small" id="show-curriculum-dashboard">Ver indicadores</button>
+              <button type="button" class="button primary small" id="new-candidate">+ Novo candidato</button>
             </div>
           </div>
           <div class="filters">
@@ -317,7 +320,7 @@
         </section>
         <section id="relatorios" class="tab-panel panel placeholder-panel hidden">
           <p class="eyebrow">Indicadores</p><h2>Relatórios</h2>
-          <p class="placeholder-copy">Os indicadores do funil podem ser exportados e compartilhados com os responsáveis pelas vagas.</p>
+          <p class="placeholder-copy">Exporta em CSV os candidatos que estão filtrados em Gestão de currículos. Para exportar só uma vaga ou um status, filtre lá e volte aqui.</p>
           <button class="button secondary" id="export-report">Exportar dados</button>
         </section>
         <section id="documentos" class="dossier-documents hidden">
