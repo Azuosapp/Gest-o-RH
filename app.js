@@ -1345,9 +1345,9 @@ async function anexarDocumentos(arquivos) {
 
 function addEmployeeRecord(field) {
   const configs = {
-    movements: { title: "Nova movimentação", fields: [["record-type", "Tipo", "combo", "movementTypes"], ["record-date", "Data", "date"], ["record-description", "Descrição", "textarea", "O que mudou e por quê"]] },
+    movements: { title: "Nova movimentação", fields: [["record-type", "Tipo", "combo", "movementTypes"], ["record-date", "Data", "date"], ["record-description", "Descrição", "textarea"]] },
     trainings: { title: "Novo treinamento", fields: [["record-name", "Nome do treinamento"], ["record-hours", "Carga horária"], ["record-date", "Data", "date"]] },
-    feedbacks: { title: "Novo registro", fields: [["record-type", "Tipo (feedback, advertência, comunicado, avaliação)"], ["record-date", "Data", "date"], ["record-description", "Descrição", "textarea", "Detalhe o registro"]] },
+    feedbacks: { title: "Novo registro", fields: [["record-type", "Tipo (feedback, advertência, comunicado, avaliação)"], ["record-date", "Data", "date"], ["record-description", "Descrição", "textarea"]] },
     medical: { title: "Novo atestado", fields: [["record-date", "Data do atestado", "date"], ["record-cid", "CID"], ["record-days", "Quantidade de dias", "number"], ["record-doctor", "Nome do médico"], ["record-partial", "Atestado parcial", "checkbox"]] }
   };
   const config = configs[field];
@@ -1355,7 +1355,7 @@ function addEmployeeRecord(field) {
   $("#record-fields").innerHTML = config.fields.map(([id, label, type = "text", extra = ""]) => {
     if (type === "checkbox") return `<label class="check-field"><input id="${id}" type="checkbox">${label}</label>`;
     // Descricao costuma ser um paragrafo, nao cabe numa linha so.
-    if (type === "textarea") return `<label class="full-width">${label}<textarea id="${id}" rows="4" placeholder="${extra}"></textarea></label>`;
+    if (type === "textarea") return `<label class="full-width">${label}<textarea id="${id}" rows="4"></textarea></label>`;
     if (type === "combo") {
       return `<label>${label}<span class="combo" data-combo="${extra}"><input id="${id}" placeholder="Pesquisar ou digitar" autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list"><button type="button" class="combo-toggle" tabindex="-1" aria-label="Ver op\u00e7\u00f5es">\u25be</button><span class="combo-menu" role="listbox"></span></span></label>`;
     }
