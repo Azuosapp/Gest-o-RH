@@ -120,6 +120,23 @@ function openCombo(combo, query = "") {
   renderComboMenu(combo, query);
   combo.classList.add("open");
   combo.querySelector("input").setAttribute("aria-expanded", "true");
+  posicionarComboMenu(combo);
+}
+
+// O <dialog> tem overflow auto por padrao no navegador, entao a lista era
+// cortada na borda dele. Escolhemos o lado com mais espaco dentro da caixa que
+// limita (o dialogo, ou a tela quando o combo esta solto na pagina) e limitamos
+// a altura ao que couber ali.
+function posicionarComboMenu(combo) {
+  const menu = combo.querySelector(".combo-menu");
+  const caixa = combo.closest("dialog");
+  const limites = caixa ? caixa.getBoundingClientRect() : { top: 0, bottom: window.innerHeight };
+  const campo = combo.getBoundingClientRect();
+  const abaixo = limites.bottom - campo.bottom - 10;
+  const acima = campo.top - limites.top - 10;
+  const paraCima = abaixo < menu.scrollHeight && acima > abaixo;
+  combo.classList.toggle("drop-up", paraCima);
+  menu.style.maxHeight = `${Math.max(120, Math.min(232, paraCima ? acima : abaixo))}px`;
 }
 
 function closeCombo(combo) {
@@ -1138,7 +1155,9 @@ function renderEmployeeRecords(employee) {
     const salario = record.oldSalary || record.newSalary
       ? `${escapeHtml(record.oldSalary || "?")} \u2192 ${escapeHtml(record.newSalary || "?")}`
       : "";
-    const funcao = record.roleChange === "Sim" ? "Fun\u00e7\u00e3o alterada" : "";
+    const funcao = record.roleChange === "Sim"
+      ? (record.newRole ? `Nova fun\u00e7\u00e3o: ${record.newRole}` : "Fun\u00e7\u00e3o alterada")
+      : "";
     const detalhes = [record.description, salario, funcao, record.role].filter(Boolean).map(escapeHtml).join(" \u00b7 ");
     return `<div class="record-row"><div><strong>${escapeHtml(record.date || "Sem data")} \u00b7 ${escapeHtml(record.type)}</strong><span>${detalhes}</span></div><button type="button" class="remove-record" data-record="movements" data-index="${index}">Remover</button></div>`;
   });
@@ -1358,6 +1377,12 @@ async function anexarDocumentos(arquivos) {
 // =============================================================================
 const SALARY_CHANGE_TYPE = "Altera\u00e7\u00e3o Salarial";
 
+// Campo de combo do dialogo de registro. Usado pelo construtor de campos e
+// pelo bloco da alteracao salarial, que monta o seu depois.
+function comboFieldMarkup(id, label, listKey) {
+  return `<label>${label}<span class="combo" data-combo="${listKey}"><input id="${id}" placeholder="Pesquisar ou digitar" autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list"><button type="button" class="combo-toggle" tabindex="-1" aria-label="Ver op\u00e7\u00f5es">\u25be</button><span class="combo-menu" role="listbox"></span></span></label>`;
+}
+
 function isSalaryChange(valor) {
   return String(valor || "").trim().toLocaleLowerCase("pt-BR") === SALARY_CHANGE_TYPE.toLocaleLowerCase("pt-BR");
 }
@@ -1375,8 +1400,24 @@ function renderMovementExtras() {
     `<fieldset class="radio-field full-width"><legend>Houve altera\u00e7\u00e3o de fun\u00e7\u00e3o?</legend><div class="radio-field-options">`,
     `<label class="check-field"><input type="radio" name="record-role-change" value="Sim">Sim</label>`,
     `<label class="check-field"><input type="radio" name="record-role-change" value="N\u00e3o" checked>N\u00e3o</label>`,
-    `</div></fieldset>`
+    `</div></fieldset>`,
+    `<div id="record-role-extra" class="full-width"></div>`
   ].join("") : "";
+  if (!mostrar) return;
+  extras.querySelectorAll(`input[name="record-role-change"]`).forEach((radio) => radio.addEventListener("change", renderRoleChangeExtra));
+  renderRoleChangeExtra();
+}
+
+// So faz sentido perguntar qual funcao quando houve troca. As opcoes vem dos
+// cargos ja cadastrados, mas o campo aceita digitar um que ainda nao exista.
+function renderRoleChangeExtra() {
+  const alvo = $("#record-role-extra");
+  if (!alvo) return;
+  const sim = document.querySelector(`input[name="record-role-change"]:checked`)?.value === "Sim";
+  if (sim === (alvo.dataset.visivel === "1")) return;
+  alvo.dataset.visivel = sim ? "1" : "";
+  alvo.innerHTML = sim ? comboFieldMarkup("record-new-role", "Nova fun\u00e7\u00e3o", "roles") : "";
+  alvo.querySelectorAll(".combo").forEach(setupCombo);
 }
 
 function addEmployeeRecord(field) {
@@ -1392,9 +1433,7 @@ function addEmployeeRecord(field) {
     if (type === "checkbox") return `<label class="check-field"><input id="${id}" type="checkbox">${label}</label>`;
     // Descricao costuma ser um paragrafo, nao cabe numa linha so.
     if (type === "textarea") return `<label class="full-width">${label}<textarea id="${id}" rows="4"></textarea></label>`;
-    if (type === "combo") {
-      return `<label>${label}<span class="combo" data-combo="${extra}"><input id="${id}" placeholder="Pesquisar ou digitar" autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list"><button type="button" class="combo-toggle" tabindex="-1" aria-label="Ver op\u00e7\u00f5es">\u25be</button><span class="combo-menu" role="listbox"></span></span></label>`;
-    }
+    if (type === "combo") return comboFieldMarkup(id, label, extra);
     return `<label class="${type === "file" ? "full-width" : ""}">${label}<input id="${id}" type="${type}" ${extra}></label>`;
   }).join("");
   // Combos montados agora precisam ser ligados na mao.
@@ -1419,7 +1458,8 @@ $("#record-form").addEventListener("submit", async (event) => {
       ...(alteracaoSalarial ? {
         oldSalary: value("record-old-salary"),
         newSalary: value("record-new-salary"),
-        roleChange: document.querySelector(`input[name="record-role-change"]:checked`)?.value || "N\u00e3o"
+        roleChange: document.querySelector(`input[name="record-role-change"]:checked`)?.value || "N\u00e3o",
+        newRole: value("record-new-role")
       } : {})
     } :
     field === "trainings" ? { name: value("record-name"), hours: value("record-hours"), date: value("record-date") } :
