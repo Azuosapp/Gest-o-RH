@@ -964,14 +964,17 @@ function renderEmployeeRecords(employee) {
     const vazio = typeof empty === "function" ? empty() : emptyState(empty);
     $(`#${field === "medical" ? "medical" : field}-list`).innerHTML = records.length ? records.map((record, index) => renderer(record, index)).join("") : vazio;
   };
-  list("documents", documentDropzone, (record, index) => {
-    const arquivo = record.file;
-    const detalhes = [record.type, record.date ? formatDate(record.date) : null, arquivo ? formatFileSize(arquivo.size) : null].filter(Boolean).join(" \u00b7 ");
-    const abrir = arquivo
-      ? `<a class="record-file-link" href="${arquivo.data}" download="${escapeHtml(arquivo.name)}" target="_blank" rel="noopener">Abrir</a>`
-      : "";
-    return `<div class="record-row"><div><strong>${escapeHtml(record.name || "Documento")}</strong><span>${escapeHtml(detalhes)}</span></div><div class="record-row-actions">${abrir}<button type="button" class="remove-record" data-record="documents" data-index="${index}">Remover</button></div></div>`;
-  });
+  const documentos = employee.documents || [];
+  $("#documents-list").innerHTML = documentos.length
+    ? documentos.map((record, index) => {
+      const arquivo = record.file;
+      const detalhes = [record.type, record.date ? formatDate(record.date) : null, arquivo ? formatFileSize(arquivo.size) : null].filter(Boolean).join(" \u00b7 ");
+      const abrir = arquivo
+        ? `<a class="record-file-link" href="${arquivo.data}" download="${escapeHtml(arquivo.name)}" target="_blank" rel="noopener">Abrir</a>`
+        : "";
+      return `<div class="record-row"><div><strong>${escapeHtml(record.name || "Documento")}</strong><span>${escapeHtml(detalhes)}</span></div><div class="record-row-actions">${abrir}<button type="button" class="remove-record" data-record="documents" data-index="${index}">Remover</button></div></div>`;
+    }).join("") + `<div class="document-attach-more"><button type="button" class="button secondary small" data-anexar-documento>+ Anexar documento</button></div>`
+    : documentDropzone();
   list("movements", "Nenhuma movimentação cadastrada.", (record, index) => `<div class="record-row"><div><strong>${record.date || "Sem data"} · ${record.type}</strong><span>${record.description || ""} ${record.role ? `· ${record.role}` : ""}</span></div><button type="button" class="remove-record" data-record="movements" data-index="${index}">Remover</button></div>`);
   list("trainings", "Nenhum treinamento cadastrado.", (record, index) => `<div class="record-row"><div><strong>${record.name}</strong><span>${record.date || "Sem data"} · ${record.hours || "Carga não informada"}</span></div><button type="button" class="remove-record" data-record="trainings" data-index="${index}">Remover</button></div>`);
   list("feedbacks", "Nenhum registro cadastrado.", (record, index) => `<div class="record-row"><div><strong>${record.type} · ${record.date || "Sem data"}</strong><span>${record.description || ""}</span></div><button type="button" class="remove-record" data-record="feedbacks" data-index="${index}">Remover</button></div>`);
@@ -1260,7 +1263,6 @@ $("#employee-success-continue").addEventListener("click", () => {
 // Documentos nao passam mais pelo dialogo: o botao abre direto o seletor de
 // arquivos, tanto no cabecalho do card quanto no convite da area vazia.
 const abrirSeletorDeDocumento = () => $("#document-upload-input").click();
-$("#add-document").addEventListener("click", abrirSeletorDeDocumento);
 $("#documents-list").addEventListener("click", (event) => {
   if (event.target.closest("[data-anexar-documento]")) abrirSeletorDeDocumento();
 });
