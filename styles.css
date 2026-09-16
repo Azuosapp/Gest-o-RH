@@ -426,6 +426,13 @@ dialog form { padding: 27px; }
 .full-width { grid-column: 1 / -1; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
 #record-fields textarea { min-height: 96px; resize: vertical; line-height: 1.5; }
+#record-extra-fields:empty { display: none; }
+#record-extra-fields { margin-top: 14px; }
+/* Pergunta de sim/nao dentro do dialogo de registro. */
+.radio-field { margin: 0; padding: 0; border: 0; }
+.radio-field legend { padding: 0; color: var(--muted); font-size: 11px; font-weight: 700; }
+.radio-field-options { display: flex; gap: 18px; margin-top: 8px; }
+.radio-field-options .check-field { color: var(--ink); font-size: 12px; font-weight: 600; }
 .success-dialog { width: min(380px, calc(100% - 32px)); border: 1px solid var(--line); border-radius: 16px; padding: 28px; text-align: center; color: var(--navy); }
 .success-dialog::backdrop { background: rgba(10, 26, 74, .35); }
 .success-dialog-zuzu { width: 132px; margin: 0 auto 10px; }

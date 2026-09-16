@@ -1134,7 +1134,14 @@ function renderEmployeeRecords(employee) {
       return `<div class="record-row"><div><strong>${escapeHtml(record.name || "Documento")}</strong><span>${escapeHtml(detalhes)}</span></div><div class="record-row-actions">${abrir}<button type="button" class="remove-record" data-record="documents" data-index="${index}">Remover</button></div></div>`;
     }).join("") + `<div class="document-attach-more"><button type="button" class="button secondary small" data-anexar-documento>+ Anexar documento</button></div>`
     : documentDropzone();
-  list("movements", "Nenhuma movimentação cadastrada.", (record, index) => `<div class="record-row"><div><strong>${record.date || "Sem data"} · ${record.type}</strong><span>${record.description || ""} ${record.role ? `· ${record.role}` : ""}</span></div><button type="button" class="remove-record" data-record="movements" data-index="${index}">Remover</button></div>`);
+  list("movements", "Nenhuma movimenta\u00e7\u00e3o cadastrada.", (record, index) => {
+    const salario = record.oldSalary || record.newSalary
+      ? `${escapeHtml(record.oldSalary || "?")} \u2192 ${escapeHtml(record.newSalary || "?")}`
+      : "";
+    const funcao = record.roleChange === "Sim" ? "Fun\u00e7\u00e3o alterada" : "";
+    const detalhes = [record.description, salario, funcao, record.role].filter(Boolean).map(escapeHtml).join(" \u00b7 ");
+    return `<div class="record-row"><div><strong>${escapeHtml(record.date || "Sem data")} \u00b7 ${escapeHtml(record.type)}</strong><span>${detalhes}</span></div><button type="button" class="remove-record" data-record="movements" data-index="${index}">Remover</button></div>`;
+  });
   list("trainings", "Nenhum treinamento cadastrado.", (record, index) => `<div class="record-row"><div><strong>${record.name}</strong><span>${record.date || "Sem data"} · ${record.hours || "Carga não informada"}</span></div><button type="button" class="remove-record" data-record="trainings" data-index="${index}">Remover</button></div>`);
   list("feedbacks", "Nenhum registro cadastrado.", (record, index) => `<div class="record-row"><div><strong>${record.type} · ${record.date || "Sem data"}</strong><span>${record.description || ""}</span></div><button type="button" class="remove-record" data-record="feedbacks" data-index="${index}">Remover</button></div>`);
   list("medical", "Nenhum atestado cadastrado.", (record, index) => `<div class="record-row"><div><strong>${record.date || "Sem data"} · ${record.days || 0} dia(s)${record.partial ? " · Parcial" : ""}</strong><span>CID: ${record.cid || "Não informado"} · Médico: ${record.doctor || "Não informado"}</span></div><button type="button" class="remove-record" data-record="medical" data-index="${index}">Remover</button></div>`);
@@ -1343,6 +1350,35 @@ async function anexarDocumentos(arquivos) {
   recado.textContent = recusados.join(" \u00b7 ");
 }
 
+// =============================================================================
+// CAMPOS EXTRAS DA ALTERACAO SALARIAL
+// Salario antigo, salario novo e se houve troca de funcao so fazem sentido
+// quando o tipo da movimentacao e alteracao salarial, entao aparecem apenas
+// nesse caso - inclusive se o tipo for digitado em vez de escolhido na lista.
+// =============================================================================
+const SALARY_CHANGE_TYPE = "Altera\u00e7\u00e3o Salarial";
+
+function isSalaryChange(valor) {
+  return String(valor || "").trim().toLocaleLowerCase("pt-BR") === SALARY_CHANGE_TYPE.toLocaleLowerCase("pt-BR");
+}
+
+function renderMovementExtras() {
+  const extras = $("#record-extra-fields");
+  const mostrar = $("#record-dialog").dataset.field === "movements" && isSalaryChange($("#record-type")?.value);
+  // Sem essa comparacao, cada tecla digitada recriaria os campos e apagaria
+  // o que o usuario ja tivesse preenchido neles.
+  if (mostrar === (extras.dataset.visivel === "1")) return;
+  extras.dataset.visivel = mostrar ? "1" : "";
+  extras.innerHTML = mostrar ? [
+    `<label>Sal\u00e1rio antigo<input id="record-old-salary" type="text" inputmode="decimal"></label>`,
+    `<label>Sal\u00e1rio novo<input id="record-new-salary" type="text" inputmode="decimal"></label>`,
+    `<fieldset class="radio-field full-width"><legend>Houve altera\u00e7\u00e3o de fun\u00e7\u00e3o?</legend><div class="radio-field-options">`,
+    `<label class="check-field"><input type="radio" name="record-role-change" value="Sim">Sim</label>`,
+    `<label class="check-field"><input type="radio" name="record-role-change" value="N\u00e3o" checked>N\u00e3o</label>`,
+    `</div></fieldset>`
+  ].join("") : "";
+}
+
 function addEmployeeRecord(field) {
   const configs = {
     movements: { title: "Nova movimentação", fields: [["record-type", "Tipo", "combo", "movementTypes"], ["record-date", "Data", "date"], ["record-description", "Descrição", "textarea"]] },
@@ -1364,6 +1400,10 @@ function addEmployeeRecord(field) {
   // Combos montados agora precisam ser ligados na mao.
   $("#record-fields").querySelectorAll(".combo").forEach(setupCombo);
   $("#record-dialog").dataset.field = field;
+  $("#record-extra-fields").dataset.visivel = "";
+  $("#record-extra-fields").innerHTML = "";
+  ["input", "change"].forEach((evento) => $("#record-type")?.addEventListener(evento, renderMovementExtras));
+  renderMovementExtras();
   $("#record-dialog").showModal();
 }
 
@@ -1373,7 +1413,15 @@ $("#record-form").addEventListener("submit", async (event) => {
   const employee = currentEmployee();
   if (!employee[field]) employee[field] = [];
   const value = (id) => $(`#${id}`)?.value || "";
-  const record = field === "movements" ? { type: value("record-type"), description: value("record-description"), date: value("record-date"), role: "" } :
+  const alteracaoSalarial = field === "movements" && isSalaryChange(value("record-type"));
+  const record = field === "movements" ? {
+      type: value("record-type"), description: value("record-description"), date: value("record-date"), role: "",
+      ...(alteracaoSalarial ? {
+        oldSalary: value("record-old-salary"),
+        newSalary: value("record-new-salary"),
+        roleChange: document.querySelector(`input[name="record-role-change"]:checked`)?.value || "N\u00e3o"
+      } : {})
+    } :
     field === "trainings" ? { name: value("record-name"), hours: value("record-hours"), date: value("record-date") } :
     field === "feedbacks" ? { type: value("record-type"), description: value("record-description"), date: value("record-date") } :
     { date: value("record-date"), cid: value("record-cid"), days: value("record-days"), doctor: value("record-doctor"), partial: $("#record-partial").checked };
