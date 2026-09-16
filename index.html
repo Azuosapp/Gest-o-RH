@@ -271,8 +271,10 @@
                 </div>
               </article>
               <article class="panel dossier-card dossier-wide">
-                <div class="panel-heading"><div><p class="eyebrow">Documentação</p><h2>Documentos pessoais e contratuais</h2></div><button type="button" class="button secondary small" id="add-document">+ Documento</button></div>
+                <div class="panel-heading"><div><h2>Anexar Documentos</h2></div></div>
                 <div class="record-list" id="documents-list"></div>
+                <p class="record-error" id="documents-error" role="alert"></p>
+                <input id="document-upload-input" type="file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" multiple hidden>
               </article>
               <article class="panel dossier-card dossier-wide">
                 <div class="panel-heading"><div><p class="eyebrow">Histórico funcional</p><h2>Movimentações, promoções e alterações</h2></div><button type="button" class="button secondary small" id="add-movement">+ Movimentação</button></div>
@@ -421,7 +423,10 @@
           <button class="button secondary" id="clear-data">Restaurar dados de demonstração</button>
         </section>
         <section id="cadastro-configuracoes" class="tab-panel panel placeholder-panel hidden">
-          <p class="eyebrow">Configurações</p><h2>Cadastro</h2>
+          <div class="settings-page-heading">
+            <div><p class="eyebrow">Configurações</p><h2>Cadastro</h2></div>
+            <div class="settings-page-actions"><button type="button" class="button primary" id="open-new-list">+ Nova opção de cadastro</button></div>
+          </div>
           <p class="placeholder-copy">Gerencie as opções utilizadas nos cadastros de colaboradores, contratos e demais rotinas do sistema.</p>
           <div class="settings-cards">
             <article class="settings-card settings-list-card settings-navigation-card" data-settings-page="novo-departamento" role="button" tabindex="0">
@@ -432,6 +437,9 @@
             </article>
             <article class="settings-card settings-list-card settings-navigation-card" data-settings-page="novo-superior" role="button" tabindex="0">
               <div><strong>Superiores diretos</strong><span>Cadastre os responsáveis que poderão ser vinculados.</span></div>
+            </article>
+            <article class="settings-card settings-list-card settings-navigation-card" data-settings-page="novo-tipo-movimentacao" role="button" tabindex="0">
+              <div><strong>Tipos de movimentação</strong><span>Opções do campo Tipo em Nova movimentação.</span></div>
             </article>
           </div>
         </section>
@@ -458,6 +466,22 @@
             <span class="settings-form-hint">Pressione Enter para adicionar</span>
           </form>
           <div class="settings-list settings-page-list" id="managers-list"></div>
+        </section>
+        <section id="novo-tipo-movimentacao" class="tab-panel panel placeholder-panel settings-entry-panel hidden">
+          <div class="settings-page-heading"><div><h2>Tipos de movimentação</h2></div><div class="settings-page-actions"><button type="button" class="button primary" data-settings-focus="movementTypes">+ Novo tipo</button><button type="button" class="button secondary" data-settings-back>Voltar</button></div></div>
+          <form class="settings-create-form" data-settings-form="movementTypes">
+            <label>Novo tipo de movimentação<input required type="text" placeholder="Ex.: Promoção" aria-label="Nome do novo tipo de movimentação"></label>
+            <span class="settings-form-hint">Pressione Enter para adicionar</span>
+          </form>
+          <div class="settings-list settings-page-list" id="movementTypes-list"></div>
+        </section>
+        <section id="lista-personalizada" class="tab-panel panel placeholder-panel settings-entry-panel hidden">
+          <div class="settings-page-heading"><div><h2 id="custom-list-title">Lista</h2></div><div class="settings-page-actions"><button type="button" class="button primary" id="custom-list-focus">+ Novo item</button><button type="button" class="button secondary" id="custom-list-delete">Excluir lista</button><button type="button" class="button secondary" data-settings-back>Voltar</button></div></div>
+          <form class="settings-create-form" id="custom-list-form">
+            <label id="custom-list-label">Novo item<input required type="text" placeholder="Digite o nome e pressione Enter" aria-label="Novo item da lista" autocomplete="off"></label>
+            <span class="settings-form-hint">Pressione Enter para adicionar</span>
+          </form>
+          <div class="settings-list settings-page-list" id="custom-list-items"></div>
         </section>
         <!-- Departamentos, cargos e superiores agora usam .combo (ver app.js). -->
       </main>
@@ -502,6 +526,7 @@
       <form method="dialog" id="record-form">
         <div class="dialog-heading"><div><p class="eyebrow">Dossiê do colaborador</p><h2 id="record-title">Novo registro</h2></div><button type="button" class="icon-button" id="close-record" aria-label="Fechar">×</button></div>
         <div id="record-fields" class="form-grid"></div>
+        <div id="record-extra-fields" class="form-grid"></div>
         <div class="dialog-actions"><button type="button" class="button secondary" id="cancel-record">Cancelar</button><button type="submit" class="button primary">Adicionar registro</button></div>
       </form>
     </dialog>
@@ -581,6 +606,19 @@
         <img class="zuzu success-dialog-zuzu zuzu-anim-celebrate" src="brand/mascote/zuzu-festejando.png" alt="Zuzu comemorando" loading="lazy">
         <h2>Colaborador salvo com sucesso!</h2>
         <div class="dialog-actions"><button type="button" class="button primary" id="employee-success-continue">Continuar</button></div>
+      </form>
+    </dialog>
+    <dialog id="new-list-dialog">
+      <form id="new-list-form">
+        <div class="dialog-heading">
+          <div><p class="eyebrow">Cadastro</p><h2>Nova opção de cadastro</h2></div>
+          <button type="button" class="icon-button" id="close-new-list" aria-label="Fechar">×</button>
+        </div>
+        <div class="form-grid single">
+          <label>Nome da opção<input required type="text" id="new-list-name" placeholder="Ex.: Turnos, Centros de custo, Benefícios" autocomplete="off"></label>
+        </div>
+        <p class="settings-new-list-error" id="new-list-error" role="alert"></p>
+        <div class="dialog-actions"><button type="button" class="button secondary" id="cancel-new-list">Cancelar</button><button type="submit" class="button primary">Criar</button></div>
       </form>
     </dialog>
     <dialog id="settings-success-dialog" class="success-dialog">

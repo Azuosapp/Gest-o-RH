@@ -121,7 +121,8 @@ let employees = readStorage("employees", initialEmployees, Array.isArray)
 const initialSettingsLists = {
   departments: ["Recursos Humanos"],
   roles: ["Analista de Departamento Pessoal"],
-  managers: ["Gestor responsável"]
+  managers: ["Gestor responsável"],
+  movementTypes: ["Advertência", "Alteração Salarial", "Ocorrências", "Promoção"]
 };
 let settingsLists = readStorage("settingsLists", initialSettingsLists, isPlainObject);
 Object.keys(initialSettingsLists).forEach((key) => {
@@ -206,6 +207,23 @@ function openCombo(combo, query = "") {
   renderComboMenu(combo, query);
   combo.classList.add("open");
   combo.querySelector("input").setAttribute("aria-expanded", "true");
+  posicionarComboMenu(combo);
+}
+
+// O <dialog> tem overflow auto por padrao no navegador, entao a lista era
+// cortada na borda dele. Escolhemos o lado com mais espaco dentro da caixa que
+// limita (o dialogo, ou a tela quando o combo esta solto na pagina) e limitamos
+// a altura ao que couber ali.
+function posicionarComboMenu(combo) {
+  const menu = combo.querySelector(".combo-menu");
+  const caixa = combo.closest("dialog");
+  const limites = caixa ? caixa.getBoundingClientRect() : { top: 0, bottom: window.innerHeight };
+  const campo = combo.getBoundingClientRect();
+  const abaixo = limites.bottom - campo.bottom - 10;
+  const acima = campo.top - limites.top - 10;
+  const paraCima = abaixo < menu.scrollHeight && acima > abaixo;
+  combo.classList.toggle("drop-up", paraCima);
+  menu.style.maxHeight = `${Math.max(120, Math.min(232, paraCima ? acima : abaixo))}px`;
 }
 
 function closeCombo(combo) {
@@ -423,8 +441,177 @@ function setupContractExpiration() {
   campoCalculado(PROBATION_PERIODS[1].inicio, "contract-date2-hint");
 }
 
-function setupCombos() {
-  document.querySelectorAll(".combo").forEach((combo) => {
+// =============================================================================
+// LISTAS DE CADASTRO CRIADAS PELO USUARIO
+// Departamentos, cargos e superiores sao fixos porque alimentam campos do
+// dossie. Estas aqui sao livres: o usuario cria a lista (Turnos, Centros de
+// custo...) e administra os itens na mesma pagina generica.
+// =============================================================================
+// Mesma protecao das outras chaves: dado corrompido ou armazenamento bloqueado
+// nao pode derrubar o sistema inteiro na abertura.
+let customLists = readStorage("customLists", [], (valor) => Array.isArray(valor)
+  && valor.every((lista) => lista && typeof lista.nome === "string" && Array.isArray(lista.itens)));
+
+// Se o navegador recusar a gravacao, volta ao estado de antes (backup tirado
+// antes da alteracao) e redesenha - sem lista ou item fantasma na tela.
+function salvarCustomLists(backup) {
+  if (writeStorage("customLists", customLists)) return true;
+  customLists = backup;
+  renderCustomListCards();
+  if (customListAtual()) renderCustomListItems();
+  return false;
+}
+
+function customListAtual() {
+  return customLists.find((lista) => lista.id === Number($("#lista-personalizada").dataset.listId));
+}
+
+function renderCustomListCards() {
+  const grade = document.querySelector(".settings-cards");
+  grade.querySelectorAll(".settings-custom-card").forEach((card) => card.remove());
+  customLists.forEach((lista) => {
+    const card = document.createElement("article");
+    card.className = "settings-card settings-list-card settings-navigation-card settings-custom-card";
+    card.setAttribute("role", "button");
+    card.tabIndex = 0;
+    const total = lista.itens.length;
+    card.innerHTML = `<div><strong>${escapeHtml(lista.nome)}</strong><span>${total ? `${total} item(ns) cadastrado(s).` : "Nenhum item cadastrado ainda."}</span></div>`;
+    const abrir = () => abrirCustomList(lista.id);
+    card.addEventListener("click", abrir);
+    card.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); abrir(); }
+    });
+    grade.appendChild(card);
+  });
+}
+
+function renderCustomListItems() {
+  const lista = customListAtual();
+  if (!lista) return;
+  $("#custom-list-title").textContent = lista.nome;
+  $("#custom-list-items").innerHTML = lista.itens.length
+    ? lista.itens.map((valor) => `<div class="settings-list-row"><span>${escapeHtml(valor)}</span><div class="settings-list-actions"><button type="button" class="settings-list-edit" data-edit-custom="${escapeHtml(valor)}">Editar</button><button type="button" class="settings-list-remove" data-remove-custom="${escapeHtml(valor)}">Remover</button></div></div>`).join("")
+    : `<div class="settings-list-empty">${zuzuMarkup("pensativo")}<span>Nenhum item cadastrado.</span></div>`;
+}
+
+function abrirCustomList(id) {
+  $("#lista-personalizada").dataset.listId = String(id);
+  renderCustomListItems();
+  activateTab("lista-personalizada");
+  history.replaceState(null, "", "#lista-personalizada");
+  $("#custom-list-form input").focus();
+}
+
+function criarCustomList(nome) {
+  const normalizado = nome.trim();
+  const recado = $("#new-list-error");
+  recado.textContent = "";
+  if (!normalizado) { recado.textContent = "D\u00ea um nome para a lista."; return null; }
+  const jaExiste = customLists.some((lista) => lista.nome.toLocaleLowerCase("pt-BR") === normalizado.toLocaleLowerCase("pt-BR"))
+    || ["departamentos", "cargos", "superiores diretos"].includes(normalizado.toLocaleLowerCase("pt-BR"));
+  if (jaExiste) { recado.textContent = "J\u00e1 existe uma op\u00e7\u00e3o de cadastro com esse nome."; return null; }
+  const backup = cloneData(customLists);
+  const lista = { id: Date.now(), nome: normalizado, itens: [] };
+  customLists.push(lista);
+  customLists.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  if (!salvarCustomLists(backup)) return null;
+  renderCustomListCards();
+  return lista;
+}
+
+function addCustomListItem(valor) {
+  const lista = customListAtual();
+  const normalizado = valor.trim();
+  if (!lista || !normalizado) return;
+  if (lista.itens.some((item) => item.toLocaleLowerCase("pt-BR") === normalizado.toLocaleLowerCase("pt-BR"))) return;
+  const backup = cloneData(customLists);
+  lista.itens.push(normalizado);
+  lista.itens.sort((a, b) => a.localeCompare(b, "pt-BR"));
+  if (!salvarCustomLists(backup)) return;
+  renderCustomListItems();
+  renderCustomListCards();
+}
+
+function setupCustomLists() {
+  renderCustomListCards();
+
+  const fecharNovaLista = () => {
+    $("#new-list-dialog").close();
+    $("#new-list-name").value = "";
+    $("#new-list-error").textContent = "";
+  };
+  $("#open-new-list").addEventListener("click", () => {
+    $("#new-list-error").textContent = "";
+    $("#new-list-dialog").showModal();
+    $("#new-list-name").focus();
+  });
+  $("#close-new-list").addEventListener("click", fecharNovaLista);
+  $("#cancel-new-list").addEventListener("click", fecharNovaLista);
+  $("#new-list-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const lista = criarCustomList($("#new-list-name").value);
+    if (!lista) return;
+    fecharNovaLista();
+    abrirCustomList(lista.id);
+  });
+
+  $("#custom-list-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const campo = $("#custom-list-form input");
+    addCustomListItem(campo.value);
+    campo.value = "";
+    campo.focus();
+  });
+
+  $("#custom-list-focus").addEventListener("click", () => $("#custom-list-form input").focus());
+
+  $("#custom-list-delete").addEventListener("click", () => {
+    const lista = customListAtual();
+    if (!lista) return;
+    // Apagar a lista leva junto todos os itens dela, entao confirmamos antes.
+    if (!window.confirm(`Excluir a op\u00e7\u00e3o "${lista.nome}" e os ${lista.itens.length} item(ns) dela?`)) return;
+    const backup = cloneData(customLists);
+    customLists = customLists.filter((item) => item.id !== lista.id);
+    if (!salvarCustomLists(backup)) return;
+    renderCustomListCards();
+    activateTab("cadastro-configuracoes");
+    history.replaceState(null, "", "#cadastro-configuracoes");
+  });
+
+  $("#custom-list-items").addEventListener("click", (event) => {
+    const lista = customListAtual();
+    if (!lista) return;
+    const remover = event.target.closest("[data-remove-custom]");
+    if (remover) {
+      const backup = cloneData(customLists);
+      lista.itens = lista.itens.filter((item) => item !== remover.dataset.removeCustom);
+      if (!salvarCustomLists(backup)) return;
+      renderCustomListItems();
+      renderCustomListCards();
+      return;
+    }
+    const editar = event.target.closest("[data-edit-custom]");
+    if (editar) {
+      const atual = editar.dataset.editCustom;
+      const novo = window.prompt("Editar item", atual);
+      if (novo === null) return;
+      const normalizado = novo.trim();
+      if (!normalizado) return;
+      const duplicado = lista.itens.some((item) => item !== atual && item.toLocaleLowerCase("pt-BR") === normalizado.toLocaleLowerCase("pt-BR"));
+      if (duplicado) return;
+      const backup = cloneData(customLists);
+      lista.itens = lista.itens.map((item) => (item === atual ? normalizado : item));
+      lista.itens.sort((a, b) => a.localeCompare(b, "pt-BR"));
+      if (!salvarCustomLists(backup)) return;
+      renderCustomListItems();
+    }
+  });
+}
+
+// Liga um combo especifico. O combo do dialogo de movimentacao e criado na
+// hora, entao precisa ser ligado depois que o HTML e montado.
+function setupCombo(combo) {
+  {
     const input = combo.querySelector("input");
     const toggle = combo.querySelector(".combo-toggle");
     const menu = combo.querySelector(".combo-menu");
@@ -466,8 +653,11 @@ function setupCombos() {
     });
 
     input.addEventListener("blur", () => { window.setTimeout(() => closeCombo(combo), 120); });
-  });
+  }
+}
 
+function setupCombos() {
+  document.querySelectorAll(".combo").forEach(setupCombo);
   document.addEventListener("click", (event) => {
     document.querySelectorAll(".combo.open").forEach((combo) => {
       if (!combo.contains(event.target)) closeCombo(combo);
@@ -476,7 +666,7 @@ function setupCombos() {
 }
 
 function refreshSettingsLists() {
-  ["departments", "roles", "managers"].forEach((key) => {
+  ["departments", "roles", "managers", "movementTypes"].forEach((key) => {
     const list = $(`#${key}-list`);
     list.innerHTML = settingsLists[key].length
       ? settingsLists[key].map((value) => `<div class="settings-list-row"><span>${escapeHtml(value)}</span><div class="settings-list-actions"><button type="button" class="settings-list-edit" data-edit-setting="${key}" data-setting-value="${escapeHtml(value)}">Editar</button><button type="button" class="settings-list-remove" data-remove-setting="${key}" data-setting-value="${escapeHtml(value)}">Remover</button></div></div>`).join("")
@@ -659,7 +849,7 @@ function activateTab(tabName, subtabName = "") {
   tabName = resolveTab(tabName);
   activeTabName = tabName;
   const showDocuments = tabName === "dossie";
-  const showSettingsEntry = ["novo-departamento", "novo-cargo", "novo-superior"].includes(tabName);
+  const showSettingsEntry = ["novo-departamento", "novo-cargo", "novo-superior", "novo-tipo-movimentacao", "lista-personalizada"].includes(tabName);
   document.body.classList.toggle("dossier-view", tabName === "dossie");
   document.body.classList.toggle("employee-list-view", tabName === "colaboradores");
   document.body.classList.toggle("settings-entry-view", showSettingsEntry);
@@ -1483,13 +1673,44 @@ function resetEmployeeForm() {
   renderEmployeeRecords({ documents: [], movements: [], trainings: [], feedbacks: [], medical: [] });
 }
 
+// Estado vazio dos documentos: o convite para anexar fica no lugar do Zuzu.
+function documentDropzone() {
+  return `<div class="document-dropzone">
+    ${zuzuMarkup("lendo")}
+    <p>Nenhum documento anexado.</p>
+    <button type="button" class="button secondary small" data-anexar-documento>Anexar documento</button>
+    <span class="document-dropzone-hint">JPEG, JPG, PNG ou PDF \u00b7 at\u00e9 2 MB por arquivo</span>
+  </div>`;
+}
+
 function renderEmployeeRecords(employee) {
+  // empty aceita texto (estado vazio padrao) ou HTML pronto.
   const list = (field, empty, renderer) => {
     const records = employee[field] || [];
-    $(`#${field === "medical" ? "medical" : field}-list`).innerHTML = records.length ? records.map((record, index) => renderer(record, index)).join("") : emptyState(empty);
+    const vazio = typeof empty === "function" ? empty() : emptyState(empty);
+    $(`#${field === "medical" ? "medical" : field}-list`).innerHTML = records.length ? records.map((record, index) => renderer(record, index)).join("") : vazio;
   };
-  list("documents", "Nenhum documento cadastrado.", (record, index) => `<div class="record-row"><div><strong>${escapeHtml(record.name)}</strong><span>${escapeHtml(record.type || "Documento")} · ${escapeHtml(record.date || "Sem data")}</span></div><button type="button" class="remove-record" data-record="documents" data-index="${index}">Remover</button></div>`);
-  list("movements", "Nenhuma movimentação cadastrada.", (record, index) => `<div class="record-row"><div><strong>${escapeHtml(record.date || "Sem data")} · ${escapeHtml(record.type)}</strong><span>${escapeHtml(record.description || "")} ${record.role ? `· ${escapeHtml(record.role)}` : ""}</span></div><button type="button" class="remove-record" data-record="movements" data-index="${index}">Remover</button></div>`);
+  const documentos = employee.documents || [];
+  $("#documents-list").innerHTML = documentos.length
+    ? documentos.map((record, index) => {
+      const arquivo = record.file;
+      const detalhes = [record.type, record.date ? formatDate(record.date) : null, arquivo ? formatFileSize(arquivo.size) : null].filter(Boolean).join(" \u00b7 ");
+      const abrir = arquivo
+        ? `<a class="record-file-link" href="${escapeHtml(arquivo.data)}" download="${escapeHtml(arquivo.name)}" target="_blank" rel="noopener">Abrir</a>`
+        : "";
+      return `<div class="record-row"><div><strong>${escapeHtml(record.name || "Documento")}</strong><span>${escapeHtml(detalhes)}</span></div><div class="record-row-actions">${abrir}<button type="button" class="remove-record" data-record="documents" data-index="${index}">Remover</button></div></div>`;
+    }).join("") + `<div class="document-attach-more"><button type="button" class="button secondary small" data-anexar-documento>+ Anexar documento</button></div>`
+    : documentDropzone();
+  list("movements", "Nenhuma movimenta\u00e7\u00e3o cadastrada.", (record, index) => {
+    const salario = record.oldSalary || record.newSalary
+      ? `${escapeHtml(record.oldSalary || "?")} \u2192 ${escapeHtml(record.newSalary || "?")}`
+      : "";
+    const funcao = record.roleChange === "Sim"
+      ? (record.newRole ? `Nova fun\u00e7\u00e3o: ${record.newRole}` : "Fun\u00e7\u00e3o alterada")
+      : "";
+    const detalhes = [record.description, salario, funcao, record.role].filter(Boolean).map(escapeHtml).join(" \u00b7 ");
+    return `<div class="record-row"><div><strong>${escapeHtml(record.date || "Sem data")} \u00b7 ${escapeHtml(record.type)}</strong><span>${detalhes}</span></div><button type="button" class="remove-record" data-record="movements" data-index="${index}">Remover</button></div>`;
+  });
   list("trainings", "Nenhum treinamento cadastrado.", (record, index) => `<div class="record-row"><div><strong>${escapeHtml(record.name)}</strong><span>${escapeHtml(record.date || "Sem data")} · ${escapeHtml(record.hours || "Carga não informada")}</span></div><button type="button" class="remove-record" data-record="trainings" data-index="${index}">Remover</button></div>`);
   list("feedbacks", "Nenhum registro cadastrado.", (record, index) => `<div class="record-row"><div><strong>${escapeHtml(record.type)} · ${formatDate(record.date)}${record.author ? ` · por ${escapeHtml(record.author)}` : ""}</strong><span>${escapeHtml(record.description || "")}${record.actions ? ` · Combinados: ${escapeHtml(record.actions)}` : ""}</span></div><button type="button" class="remove-record" data-record="feedbacks" data-index="${index}">Remover</button></div>`);
   list("medical", "Nenhum atestado cadastrado.", (record, index) => `<div class="record-row"><div><strong>${escapeHtml(record.date || "Sem data")} · ${escapeHtml(record.days || 0)} dia(s)${record.partial ? " · Parcial" : ""}</strong><span>CID: ${escapeHtml(record.cid || "Não informado")} · Médico: ${escapeHtml(record.doctor || "Não informado")}</span></div><button type="button" class="remove-record" data-record="medical" data-index="${index}">Remover</button></div>`);
@@ -1651,12 +1872,130 @@ $("#employee-list").addEventListener("keydown", (event) => {
   row.click();
 });
 
+// =============================================================================
+// UPLOAD DE DOCUMENTOS PESSOAIS
+// O arquivo e guardado como data URL dentro do proprio cadastro, no
+// localStorage. Como o localStorage da origem tem cerca de 5 MB no total e a
+// data URL fica ~35% maior que o arquivo, limitamos cada envio a 2 MB e
+// tratamos o estouro de cota com mensagem em vez de quebrar a tela.
+// =============================================================================
+const DOCUMENT_ACCEPT = ".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf";
+const DOCUMENT_MIMES = ["image/jpeg", "image/jpg", "image/png", "application/pdf"];
+const DOCUMENT_EXTENSIONS = ["jpg", "jpeg", "png", "pdf"];
+const DOCUMENT_MAX_BYTES = 2 * 1024 * 1024;
+
+function documentFileError(file) {
+  if (!file) return "Escolha um arquivo JPEG, JPG, PNG ou PDF.";
+  const extensao = (file.name.split(".").pop() || "").toLocaleLowerCase("pt-BR");
+  // Alguns navegadores nao informam o MIME; a extensao serve de segunda checagem.
+  const tipoOk = DOCUMENT_MIMES.includes(file.type) || (!file.type && DOCUMENT_EXTENSIONS.includes(extensao));
+  if (!tipoOk || !DOCUMENT_EXTENSIONS.includes(extensao)) return "Formato n\u00e3o aceito. Envie JPEG, JPG, PNG ou PDF.";
+  if (file.size > DOCUMENT_MAX_BYTES) return `Arquivo de ${formatFileSize(file.size)}. O limite por documento \u00e9 ${formatFileSize(DOCUMENT_MAX_BYTES)}.`;
+  return "";
+}
+
+function lerArquivoComoDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(reader.result));
+    reader.addEventListener("error", () => reject(reader.error));
+    reader.readAsDataURL(file);
+  });
+}
+
+// Anexa um ou mais arquivos ao colaborador aberto. Nome e data saem do proprio
+// arquivo - nao ha nada a preencher alem de escolher o que enviar.
+async function anexarDocumentos(arquivos) {
+  const employee = currentEmployee();
+  if (!employee) return;
+  if (!employee.documents) employee.documents = [];
+  const recado = $("#documents-error");
+  const recusados = [];
+  const aceitos = [];
+
+  for (const file of [...arquivos]) {
+    const erro = documentFileError(file);
+    if (erro) { recusados.push(`${file.name}: ${erro}`); continue; }
+    try {
+      aceitos.push({
+        name: file.name,
+        date: new Date().toISOString().slice(0, 10),
+        file: { name: file.name, size: file.size, mime: file.type || "application/octet-stream", data: await lerArquivoComoDataUrl(file) }
+      });
+    } catch {
+      recusados.push(`${file.name}: n\u00e3o consegui ler o arquivo.`);
+    }
+  }
+
+  if (aceitos.length) {
+    // A copia sai ANTES de incluir: se nao couber no navegador, saveEmployees
+    // volta exatamente a este estado e redesenha, sem documento fantasma.
+    // saveEmployee nao lanca erro na falta de espaco - avisa e retorna false.
+    const backup = cloneData(employees);
+    employee.documents.push(...aceitos);
+    if (!saveEmployee(null, { keepForm: true, backup })) {
+      recusados.push("N\u00e3o h\u00e1 espa\u00e7o para guardar. Remova documentos antigos e tente de novo.");
+    }
+  }
+  recado.textContent = recusados.join(" \u00b7 ");
+}
+
+// =============================================================================
+// CAMPOS EXTRAS DA ALTERACAO SALARIAL
+// Salario antigo, salario novo e se houve troca de funcao so fazem sentido
+// quando o tipo da movimentacao e alteracao salarial, entao aparecem apenas
+// nesse caso - inclusive se o tipo for digitado em vez de escolhido na lista.
+// =============================================================================
+const SALARY_CHANGE_TYPE = "Altera\u00e7\u00e3o Salarial";
+
+// Campo de combo do dialogo de registro. Usado pelo construtor de campos e
+// pelo bloco da alteracao salarial, que monta o seu depois.
+function comboFieldMarkup(id, label, listKey) {
+  return `<label>${label}<span class="combo" data-combo="${listKey}"><input id="${id}" placeholder="Pesquisar ou digitar" autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list"><button type="button" class="combo-toggle" tabindex="-1" aria-label="Ver op\u00e7\u00f5es">\u25be</button><span class="combo-menu" role="listbox"></span></span></label>`;
+}
+
+function isSalaryChange(valor) {
+  return String(valor || "").trim().toLocaleLowerCase("pt-BR") === SALARY_CHANGE_TYPE.toLocaleLowerCase("pt-BR");
+}
+
+function renderMovementExtras() {
+  const extras = $("#record-extra-fields");
+  const mostrar = $("#record-dialog").dataset.field === "movements" && isSalaryChange($("#record-type")?.value);
+  // Sem essa comparacao, cada tecla digitada recriaria os campos e apagaria
+  // o que o usuario ja tivesse preenchido neles.
+  if (mostrar === (extras.dataset.visivel === "1")) return;
+  extras.dataset.visivel = mostrar ? "1" : "";
+  extras.innerHTML = mostrar ? [
+    `<label>Sal\u00e1rio antigo<input id="record-old-salary" type="text" inputmode="decimal"></label>`,
+    `<label>Sal\u00e1rio novo<input id="record-new-salary" type="text" inputmode="decimal"></label>`,
+    `<fieldset class="radio-field full-width"><legend>Houve altera\u00e7\u00e3o de fun\u00e7\u00e3o?</legend><div class="radio-field-options">`,
+    `<label class="check-field"><input type="radio" name="record-role-change" value="Sim">Sim</label>`,
+    `<label class="check-field"><input type="radio" name="record-role-change" value="N\u00e3o" checked>N\u00e3o</label>`,
+    `</div></fieldset>`,
+    `<div id="record-role-extra" class="full-width"></div>`
+  ].join("") : "";
+  if (!mostrar) return;
+  extras.querySelectorAll(`input[name="record-role-change"]`).forEach((radio) => radio.addEventListener("change", renderRoleChangeExtra));
+  renderRoleChangeExtra();
+}
+
+// So faz sentido perguntar qual funcao quando houve troca. As opcoes vem dos
+// cargos ja cadastrados, mas o campo aceita digitar um que ainda nao exista.
+function renderRoleChangeExtra() {
+  const alvo = $("#record-role-extra");
+  if (!alvo) return;
+  const sim = document.querySelector(`input[name="record-role-change"]:checked`)?.value === "Sim";
+  if (sim === (alvo.dataset.visivel === "1")) return;
+  alvo.dataset.visivel = sim ? "1" : "";
+  alvo.innerHTML = sim ? comboFieldMarkup("record-new-role", "Nova fun\u00e7\u00e3o", "roles") : "";
+  alvo.querySelectorAll(".combo").forEach(setupCombo);
+}
+
 function addEmployeeRecord(field) {
   const configs = {
-    documents: { title: "Novo documento", fields: [["record-name", "Nome do documento"], ["record-type", "Tipo (RG, contrato, comprovante)"], ["record-date", "Data", "date"]] },
-    movements: { title: "Nova movimentação", fields: [["record-type", "Tipo (admissão, promoção, alteração)"], ["record-description", "Descrição"], ["record-date", "Data", "date"]] },
+    movements: { title: "Nova movimentação", fields: [["record-type", "Tipo", "combo", "movementTypes"], ["record-date", "Data", "date"], ["record-description", "Descrição", "textarea"]] },
     trainings: { title: "Novo treinamento", fields: [["record-name", "Nome do treinamento"], ["record-hours", "Carga horária"], ["record-date", "Data", "date"]] },
-    feedbacks: { title: "Novo registro", fields: [["record-type", "Tipo (feedback, advertência, comunicado, avaliação)"], ["record-description", "Descrição"], ["record-date", "Data", "date"]] },
+    feedbacks: { title: "Novo registro", fields: [["record-type", "Tipo (feedback, advertência, comunicado, avaliação)"], ["record-date", "Data", "date"], ["record-description", "Descrição", "textarea"]] },
     medical: { title: "Novo atestado", fields: [["record-date", "Data do atestado", "date"], ["record-cid", "CID"], ["record-days", "Quantidade de dias", "number"], ["record-doctor", "Nome do médico"], ["record-partial", "Atestado parcial", "checkbox"]] }
   };
   const config = configs[field];
@@ -1665,12 +2004,24 @@ function addEmployeeRecord(field) {
     return;
   }
   $("#record-title").textContent = config.title;
-  $("#record-fields").innerHTML = config.fields.map(([id, label, type = "text"]) => type === "checkbox" ? `<label class="check-field"><input id="${id}" type="checkbox">${label}</label>` : `<label>${label}<input id="${id}" type="${type}"></label>`).join("");
+  $("#record-fields").innerHTML = config.fields.map(([id, label, type = "text", extra = ""]) => {
+    if (type === "checkbox") return `<label class="check-field"><input id="${id}" type="checkbox">${label}</label>`;
+    // Descricao costuma ser um paragrafo, nao cabe numa linha so.
+    if (type === "textarea") return `<label class="full-width">${label}<textarea id="${id}" rows="4"></textarea></label>`;
+    if (type === "combo") return comboFieldMarkup(id, label, extra);
+    return `<label class="${type === "file" ? "full-width" : ""}">${label}<input id="${id}" type="${type}" ${extra}></label>`;
+  }).join("");
+  // Combos montados agora precisam ser ligados na mao.
+  $("#record-fields").querySelectorAll(".combo").forEach(setupCombo);
   $("#record-dialog").dataset.field = field;
+  $("#record-extra-fields").dataset.visivel = "";
+  $("#record-extra-fields").innerHTML = "";
+  ["input", "change"].forEach((evento) => $("#record-type")?.addEventListener(evento, renderMovementExtras));
+  renderMovementExtras();
   $("#record-dialog").showModal();
 }
 
-$("#record-form").addEventListener("submit", (event) => {
+$("#record-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const field = $("#record-dialog").dataset.field;
   const employee = currentEmployee();
@@ -1681,8 +2032,16 @@ $("#record-form").addEventListener("submit", (event) => {
   const backup = cloneData(employees);
   if (!Array.isArray(employee[field])) employee[field] = [];
   const value = (id) => $(`#${id}`)?.value || "";
-  const record = field === "documents" ? { name: value("record-name"), type: value("record-type"), date: value("record-date") } :
-    field === "movements" ? { type: value("record-type"), description: value("record-description"), date: value("record-date"), role: "" } :
+  const alteracaoSalarial = field === "movements" && isSalaryChange(value("record-type"));
+  const record = field === "movements" ? {
+      type: value("record-type"), description: value("record-description"), date: value("record-date"), role: "",
+      ...(alteracaoSalarial ? {
+        oldSalary: value("record-old-salary"),
+        newSalary: value("record-new-salary"),
+        roleChange: document.querySelector(`input[name="record-role-change"]:checked`)?.value || "N\u00e3o",
+        newRole: value("record-new-role")
+      } : {})
+    } :
     field === "trainings" ? { name: value("record-name"), hours: value("record-hours"), date: value("record-date") } :
     field === "feedbacks" ? { type: value("record-type"), description: value("record-description"), date: value("record-date") } :
     { date: value("record-date"), cid: value("record-cid"), days: value("record-days"), doctor: value("record-doctor"), partial: $("#record-partial").checked };
@@ -1724,7 +2083,18 @@ $("#employee-success-continue").addEventListener("click", () => {
   activateTab("colaboradores");
   setTabHash("colaboradores");
 });
-["documents", "movements", "trainings", "feedbacks", "medical"].forEach((field) => $(`#add-${field === "medical" ? "medical" : field.slice(0, -1)}`).addEventListener("click", () => addEmployeeRecord(field)));
+// Documentos nao passam mais pelo dialogo: o botao abre direto o seletor de
+// arquivos, tanto no cabecalho do card quanto no convite da area vazia.
+const abrirSeletorDeDocumento = () => $("#document-upload-input").click();
+$("#documents-list").addEventListener("click", (event) => {
+  if (event.target.closest("[data-anexar-documento]")) abrirSeletorDeDocumento();
+});
+$("#document-upload-input").addEventListener("change", async (event) => {
+  const arquivos = event.target.files;
+  if (arquivos.length) await anexarDocumentos(arquivos);
+  event.target.value = ""; // permite reenviar o mesmo arquivo depois
+});
+["movements", "trainings", "feedbacks", "medical"].forEach((field) => $(`#add-${field === "medical" ? "medical" : field.slice(0, -1)}`).addEventListener("click", () => addEmployeeRecord(field)));
 $("#dossie").addEventListener("click", (event) => {
   if (!event.target.classList.contains("remove-record")) return;
   const employee = currentEmployee();
@@ -1974,6 +2344,7 @@ document.querySelectorAll(".settings-list").forEach((list) => {
   });
 });
 setupCombos();
+setupCustomLists();
 setupContractExpiration();
 refreshSettingsLists();
 setupEmployeeFilters();
