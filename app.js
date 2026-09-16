@@ -952,7 +952,14 @@ function renderEmployeeRecords(employee) {
     const records = employee[field] || [];
     $(`#${field === "medical" ? "medical" : field}-list`).innerHTML = records.length ? records.map((record, index) => renderer(record, index)).join("") : emptyState(empty);
   };
-  list("documents", "Nenhum documento cadastrado.", (record, index) => `<div class="record-row"><div><strong>${record.name}</strong><span>${record.type || "Documento"} · ${record.date || "Sem data"}</span></div><button type="button" class="remove-record" data-record="documents" data-index="${index}">Remover</button></div>`);
+  list("documents", "Nenhum documento cadastrado.", (record, index) => {
+    const arquivo = record.file;
+    const detalhes = [record.type || "Documento", record.date || "Sem data", arquivo ? formatFileSize(arquivo.size) : null].filter(Boolean).join(" \u00b7 ");
+    const abrir = arquivo
+      ? `<a class="record-file-link" href="${arquivo.data}" download="${escapeHtml(arquivo.name)}" target="_blank" rel="noopener">Abrir</a>`
+      : "";
+    return `<div class="record-row"><div><strong>${escapeHtml(record.name || "Documento")}</strong><span>${escapeHtml(detalhes)}</span></div><div class="record-row-actions">${abrir}<button type="button" class="remove-record" data-record="documents" data-index="${index}">Remover</button></div></div>`;
+  });
   list("movements", "Nenhuma movimentação cadastrada.", (record, index) => `<div class="record-row"><div><strong>${record.date || "Sem data"} · ${record.type}</strong><span>${record.description || ""} ${record.role ? `· ${record.role}` : ""}</span></div><button type="button" class="remove-record" data-record="movements" data-index="${index}">Remover</button></div>`);
   list("trainings", "Nenhum treinamento cadastrado.", (record, index) => `<div class="record-row"><div><strong>${record.name}</strong><span>${record.date || "Sem data"} · ${record.hours || "Carga não informada"}</span></div><button type="button" class="remove-record" data-record="trainings" data-index="${index}">Remover</button></div>`);
   list("feedbacks", "Nenhum registro cadastrado.", (record, index) => `<div class="record-row"><div><strong>${record.type} · ${record.date || "Sem data"}</strong><span>${record.description || ""}</span></div><button type="button" class="remove-record" data-record="feedbacks" data-index="${index}">Remover</button></div>`);
@@ -1090,9 +1097,40 @@ $("#employee-list").addEventListener("keydown", (event) => {
   row.click();
 });
 
+// =============================================================================
+// UPLOAD DE DOCUMENTOS PESSOAIS
+// O arquivo e guardado como data URL dentro do proprio cadastro, no
+// localStorage. Como o localStorage da origem tem cerca de 5 MB no total e a
+// data URL fica ~35% maior que o arquivo, limitamos cada envio a 2 MB e
+// tratamos o estouro de cota com mensagem em vez de quebrar a tela.
+// =============================================================================
+const DOCUMENT_ACCEPT = ".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf";
+const DOCUMENT_MIMES = ["image/jpeg", "image/jpg", "image/png", "application/pdf"];
+const DOCUMENT_EXTENSIONS = ["jpg", "jpeg", "png", "pdf"];
+const DOCUMENT_MAX_BYTES = 2 * 1024 * 1024;
+
+function documentFileError(file) {
+  if (!file) return "Escolha um arquivo JPEG, JPG, PNG ou PDF.";
+  const extensao = (file.name.split(".").pop() || "").toLocaleLowerCase("pt-BR");
+  // Alguns navegadores nao informam o MIME; a extensao serve de segunda checagem.
+  const tipoOk = DOCUMENT_MIMES.includes(file.type) || (!file.type && DOCUMENT_EXTENSIONS.includes(extensao));
+  if (!tipoOk || !DOCUMENT_EXTENSIONS.includes(extensao)) return "Formato n\u00e3o aceito. Envie JPEG, JPG, PNG ou PDF.";
+  if (file.size > DOCUMENT_MAX_BYTES) return `Arquivo de ${formatFileSize(file.size)}. O limite por documento \u00e9 ${formatFileSize(DOCUMENT_MAX_BYTES)}.`;
+  return "";
+}
+
+function lerArquivoComoDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(reader.result));
+    reader.addEventListener("error", () => reject(reader.error));
+    reader.readAsDataURL(file);
+  });
+}
+
 function addEmployeeRecord(field) {
   const configs = {
-    documents: { title: "Novo documento", fields: [["record-name", "Nome do documento"], ["record-type", "Tipo (RG, contrato, comprovante)"], ["record-date", "Data", "date"]] },
+    documents: { title: "Novo documento", fields: [["record-file", "Arquivo (JPEG, JPG, PNG ou PDF)", "file", `required accept="${DOCUMENT_ACCEPT}"`], ["record-name", "Nome do documento"], ["record-type", "Tipo (RG, contrato, comprovante)"], ["record-date", "Data", "date"]] },
     movements: { title: "Nova movimentação", fields: [["record-type", "Tipo (admissão, promoção, alteração)"], ["record-description", "Descrição"], ["record-date", "Data", "date"]] },
     trainings: { title: "Novo treinamento", fields: [["record-name", "Nome do treinamento"], ["record-hours", "Carga horária"], ["record-date", "Data", "date"]] },
     feedbacks: { title: "Novo registro", fields: [["record-type", "Tipo (feedback, advertência, comunicado, avaliação)"], ["record-description", "Descrição"], ["record-date", "Data", "date"]] },
@@ -1100,24 +1138,61 @@ function addEmployeeRecord(field) {
   };
   const config = configs[field];
   $("#record-title").textContent = config.title;
-  $("#record-fields").innerHTML = config.fields.map(([id, label, type = "text"]) => type === "checkbox" ? `<label class="check-field"><input id="${id}" type="checkbox">${label}</label>` : `<label>${label}<input id="${id}" type="${type}"></label>`).join("");
+  $("#record-fields").innerHTML = config.fields.map(([id, label, type = "text", attrs = ""]) => type === "checkbox" ? `<label class="check-field"><input id="${id}" type="checkbox">${label}</label>` : `<label class="${type === "file" ? "full-width" : ""}">${label}<input id="${id}" type="${type}" ${attrs}></label>`).join("");
+  $("#record-error").textContent = "";
   $("#record-dialog").dataset.field = field;
+  // Nome do documento em branco herda o nome do arquivo escolhido.
+  $("#record-file")?.addEventListener("change", (event) => {
+    const file = event.target.files[0];
+    $("#record-error").textContent = file ? documentFileError(file) : "";
+    const nome = $("#record-name");
+    if (file && nome && !nome.value.trim()) nome.value = file.name.replace(/\.[^.]+$/, "");
+  });
   $("#record-dialog").showModal();
 }
 
-$("#record-form").addEventListener("submit", (event) => {
+$("#record-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const field = $("#record-dialog").dataset.field;
   const employee = currentEmployee();
   if (!employee[field]) employee[field] = [];
   const value = (id) => $(`#${id}`)?.value || "";
-  const record = field === "documents" ? { name: value("record-name"), type: value("record-type"), date: value("record-date") } :
+
+  let arquivo = null;
+  if (field === "documents") {
+    const file = $("#record-file").files[0];
+    const erro = documentFileError(file);
+    if (erro) { $("#record-error").textContent = erro; return; }
+    try {
+      arquivo = { name: file.name, size: file.size, mime: file.type || "application/octet-stream", data: await lerArquivoComoDataUrl(file) };
+    } catch {
+      $("#record-error").textContent = "N\u00e3o consegui ler o arquivo. Tente novamente.";
+      return;
+    }
+  }
+
+  const record = field === "documents" ? { name: value("record-name") || arquivo.name, type: value("record-type"), date: value("record-date"), file: arquivo } :
     field === "movements" ? { type: value("record-type"), description: value("record-description"), date: value("record-date"), role: "" } :
     field === "trainings" ? { name: value("record-name"), hours: value("record-hours"), date: value("record-date") } :
     field === "feedbacks" ? { type: value("record-type"), description: value("record-description"), date: value("record-date") } :
     { date: value("record-date"), cid: value("record-cid"), days: value("record-days"), doctor: value("record-doctor"), partial: $("#record-partial").checked };
   employee[field].push(record);
-  saveEmployee();
+  // saveEmployee limpa o formulario ao final, o que jogava o dossie para um
+  // colaborador em branco - e o registro seguinte ia parar num cadastro novo.
+  // Reabrimos o mesmo colaborador assim que a gravacao termina.
+  const idAberto = employee.id;
+  const reabrir = () => {
+    const salvo = employees.find((item) => item.id === idAberto);
+    if (salvo) fillEmployeeForm(salvo);
+  };
+  try {
+    saveEmployee(reabrir);
+  } catch (erro) {
+    // Cota do localStorage estourada: desfaz e avisa, em vez de perder a tela.
+    employee[field].pop();
+    $("#record-error").textContent = "N\u00e3o há espaço para guardar este arquivo. Remova documentos antigos e tente de novo.";
+    return;
+  }
   renderEmployeeRecords(employee);
   $("#record-dialog").close();
 });

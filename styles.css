@@ -397,6 +397,12 @@ tbody tr:hover { background: #fafcff; }
 .record-row strong { color: var(--navy); font-size: 12px; }
 .record-row span { color: var(--muted); font-size: 11px; margin-top: 4px; }
 .remove-record { border: 0; color: var(--red); background: transparent; font-size: 11px; font-weight: 700; white-space: nowrap; }
+/* Upload de documentos pessoais */
+.record-row-actions { display: flex; align-items: center; gap: 12px; }
+.record-file-link { color: var(--blue); font-size: 11px; font-weight: 700; text-decoration: none; white-space: nowrap; }
+.record-file-link:hover { text-decoration: underline; }
+.record-error { min-height: 15px; margin: 10px 0 0; color: var(--red); font-size: 11px; font-weight: 600; }
+.record-error:empty { margin: 0; }
 .record-empty { display: grid; justify-items: center; gap: 8px; color: var(--muted); border: 1px dashed #cfd8e8; border-radius: 9px; padding: 15px 17px; text-align: center; font-size: 12px; }
 dialog { width: min(640px, calc(100% - 30px)); border: 0; border-radius: var(--r-card); padding: 0; box-shadow: 0 20px 70px #17243a44; }
 dialog::backdrop { background: #17243a66; }
