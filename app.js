@@ -947,14 +947,26 @@ function resetEmployeeForm() {
   renderEmployeeRecords({ documents: [], movements: [], trainings: [], feedbacks: [], medical: [] });
 }
 
+// Estado vazio dos documentos: o convite para anexar fica no lugar do Zuzu.
+function documentDropzone() {
+  return `<div class="document-dropzone">
+    ${zuzuMarkup("lendo")}
+    <p>Nenhum documento anexado.</p>
+    <button type="button" class="button secondary small" data-anexar-documento>Anexar documento</button>
+    <span class="document-dropzone-hint">JPEG, JPG, PNG ou PDF \u00b7 at\u00e9 2 MB por arquivo</span>
+  </div>`;
+}
+
 function renderEmployeeRecords(employee) {
+  // empty aceita texto (estado vazio padrao) ou HTML pronto.
   const list = (field, empty, renderer) => {
     const records = employee[field] || [];
-    $(`#${field === "medical" ? "medical" : field}-list`).innerHTML = records.length ? records.map((record, index) => renderer(record, index)).join("") : emptyState(empty);
+    const vazio = typeof empty === "function" ? empty() : emptyState(empty);
+    $(`#${field === "medical" ? "medical" : field}-list`).innerHTML = records.length ? records.map((record, index) => renderer(record, index)).join("") : vazio;
   };
-  list("documents", "Nenhum documento cadastrado.", (record, index) => {
+  list("documents", documentDropzone, (record, index) => {
     const arquivo = record.file;
-    const detalhes = [record.type || "Documento", record.date || "Sem data", arquivo ? formatFileSize(arquivo.size) : null].filter(Boolean).join(" \u00b7 ");
+    const detalhes = [record.type, record.date ? formatDate(record.date) : null, arquivo ? formatFileSize(arquivo.size) : null].filter(Boolean).join(" \u00b7 ");
     const abrir = arquivo
       ? `<a class="record-file-link" href="${arquivo.data}" download="${escapeHtml(arquivo.name)}" target="_blank" rel="noopener">Abrir</a>`
       : "";
@@ -1128,9 +1140,49 @@ function lerArquivoComoDataUrl(file) {
   });
 }
 
+// Anexa um ou mais arquivos ao colaborador aberto. Nome e data saem do proprio
+// arquivo - nao ha nada a preencher alem de escolher o que enviar.
+async function anexarDocumentos(arquivos) {
+  const employee = currentEmployee();
+  if (!employee) return;
+  if (!employee.documents) employee.documents = [];
+  const recado = $("#documents-error");
+  const recusados = [];
+  const aceitos = [];
+
+  for (const file of [...arquivos]) {
+    const erro = documentFileError(file);
+    if (erro) { recusados.push(`${file.name}: ${erro}`); continue; }
+    try {
+      aceitos.push({
+        name: file.name,
+        date: new Date().toISOString().slice(0, 10),
+        file: { name: file.name, size: file.size, mime: file.type || "application/octet-stream", data: await lerArquivoComoDataUrl(file) }
+      });
+    } catch {
+      recusados.push(`${file.name}: n\u00e3o consegui ler o arquivo.`);
+    }
+  }
+
+  if (aceitos.length) {
+    employee.documents.push(...aceitos);
+    const idAberto = employee.id;
+    try {
+      saveEmployee(() => {
+        const salvo = employees.find((item) => item.id === idAberto);
+        if (salvo) fillEmployeeForm(salvo);
+      });
+    } catch {
+      // Cota do localStorage estourada: desfaz e avisa, sem quebrar a tela.
+      employee.documents.splice(-aceitos.length, aceitos.length);
+      recusados.push("N\u00e3o h\u00e1 espa\u00e7o para guardar. Remova documentos antigos e tente de novo.");
+    }
+  }
+  recado.textContent = recusados.join(" \u00b7 ");
+}
+
 function addEmployeeRecord(field) {
   const configs = {
-    documents: { title: "Novo documento", fields: [["record-file", "Arquivo (JPEG, JPG, PNG ou PDF)", "file", `required accept="${DOCUMENT_ACCEPT}"`], ["record-name", "Nome do documento"], ["record-type", "Tipo (RG, contrato, comprovante)"], ["record-date", "Data", "date"]] },
     movements: { title: "Nova movimentação", fields: [["record-type", "Tipo (admissão, promoção, alteração)"], ["record-description", "Descrição"], ["record-date", "Data", "date"]] },
     trainings: { title: "Novo treinamento", fields: [["record-name", "Nome do treinamento"], ["record-hours", "Carga horária"], ["record-date", "Data", "date"]] },
     feedbacks: { title: "Novo registro", fields: [["record-type", "Tipo (feedback, advertência, comunicado, avaliação)"], ["record-description", "Descrição"], ["record-date", "Data", "date"]] },
@@ -1139,15 +1191,7 @@ function addEmployeeRecord(field) {
   const config = configs[field];
   $("#record-title").textContent = config.title;
   $("#record-fields").innerHTML = config.fields.map(([id, label, type = "text", attrs = ""]) => type === "checkbox" ? `<label class="check-field"><input id="${id}" type="checkbox">${label}</label>` : `<label class="${type === "file" ? "full-width" : ""}">${label}<input id="${id}" type="${type}" ${attrs}></label>`).join("");
-  $("#record-error").textContent = "";
   $("#record-dialog").dataset.field = field;
-  // Nome do documento em branco herda o nome do arquivo escolhido.
-  $("#record-file")?.addEventListener("change", (event) => {
-    const file = event.target.files[0];
-    $("#record-error").textContent = file ? documentFileError(file) : "";
-    const nome = $("#record-name");
-    if (file && nome && !nome.value.trim()) nome.value = file.name.replace(/\.[^.]+$/, "");
-  });
   $("#record-dialog").showModal();
 }
 
@@ -1157,22 +1201,7 @@ $("#record-form").addEventListener("submit", async (event) => {
   const employee = currentEmployee();
   if (!employee[field]) employee[field] = [];
   const value = (id) => $(`#${id}`)?.value || "";
-
-  let arquivo = null;
-  if (field === "documents") {
-    const file = $("#record-file").files[0];
-    const erro = documentFileError(file);
-    if (erro) { $("#record-error").textContent = erro; return; }
-    try {
-      arquivo = { name: file.name, size: file.size, mime: file.type || "application/octet-stream", data: await lerArquivoComoDataUrl(file) };
-    } catch {
-      $("#record-error").textContent = "N\u00e3o consegui ler o arquivo. Tente novamente.";
-      return;
-    }
-  }
-
-  const record = field === "documents" ? { name: value("record-name") || arquivo.name, type: value("record-type"), date: value("record-date"), file: arquivo } :
-    field === "movements" ? { type: value("record-type"), description: value("record-description"), date: value("record-date"), role: "" } :
+  const record = field === "movements" ? { type: value("record-type"), description: value("record-description"), date: value("record-date"), role: "" } :
     field === "trainings" ? { name: value("record-name"), hours: value("record-hours"), date: value("record-date") } :
     field === "feedbacks" ? { type: value("record-type"), description: value("record-description"), date: value("record-date") } :
     { date: value("record-date"), cid: value("record-cid"), days: value("record-days"), doctor: value("record-doctor"), partial: $("#record-partial").checked };
@@ -1188,9 +1217,7 @@ $("#record-form").addEventListener("submit", async (event) => {
   try {
     saveEmployee(reabrir);
   } catch (erro) {
-    // Cota do localStorage estourada: desfaz e avisa, em vez de perder a tela.
     employee[field].pop();
-    $("#record-error").textContent = "N\u00e3o há espaço para guardar este arquivo. Remova documentos antigos e tente de novo.";
     return;
   }
   renderEmployeeRecords(employee);
@@ -1230,7 +1257,19 @@ $("#employee-success-continue").addEventListener("click", () => {
   activateTab("colaboradores");
   history.replaceState(null, "", "#colaboradores");
 });
-["documents", "movements", "trainings", "feedbacks", "medical"].forEach((field) => $(`#add-${field === "medical" ? "medical" : field.slice(0, -1)}`).addEventListener("click", () => addEmployeeRecord(field)));
+// Documentos nao passam mais pelo dialogo: o botao abre direto o seletor de
+// arquivos, tanto no cabecalho do card quanto no convite da area vazia.
+const abrirSeletorDeDocumento = () => $("#document-upload-input").click();
+$("#add-document").addEventListener("click", abrirSeletorDeDocumento);
+$("#documents-list").addEventListener("click", (event) => {
+  if (event.target.closest("[data-anexar-documento]")) abrirSeletorDeDocumento();
+});
+$("#document-upload-input").addEventListener("change", async (event) => {
+  const arquivos = event.target.files;
+  if (arquivos.length) await anexarDocumentos(arquivos);
+  event.target.value = ""; // permite reenviar o mesmo arquivo depois
+});
+["movements", "trainings", "feedbacks", "medical"].forEach((field) => $(`#add-${field === "medical" ? "medical" : field.slice(0, -1)}`).addEventListener("click", () => addEmployeeRecord(field)));
 $("#dossie").addEventListener("click", (event) => {
   if (!event.target.classList.contains("remove-record")) return;
   const employee = currentEmployee();

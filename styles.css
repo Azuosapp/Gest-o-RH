@@ -402,6 +402,10 @@ tbody tr:hover { background: #fafcff; }
 .record-file-link { color: var(--blue); font-size: 11px; font-weight: 700; text-decoration: none; white-space: nowrap; }
 .record-file-link:hover { text-decoration: underline; }
 .record-error { min-height: 15px; margin: 10px 0 0; color: var(--red); font-size: 11px; font-weight: 600; }
+/* Area vazia de documentos: o proprio convite para anexar. */
+.document-dropzone { display: grid; justify-items: center; gap: 10px; padding: 26px 20px; border: 1px dashed #cfd8e8; border-radius: 9px; text-align: center; }
+.document-dropzone p { margin: 0; color: var(--muted); font-size: 12px; }
+.document-dropzone-hint { color: var(--muted); font-size: 10px; }
 .record-error:empty { margin: 0; }
 .record-empty { display: grid; justify-items: center; gap: 8px; color: var(--muted); border: 1px dashed #cfd8e8; border-radius: 9px; padding: 15px 17px; text-align: center; font-size: 12px; }
 dialog { width: min(640px, calc(100% - 30px)); border: 0; border-radius: var(--r-card); padding: 0; box-shadow: 0 20px 70px #17243a44; }

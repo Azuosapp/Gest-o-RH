@@ -269,6 +269,8 @@
               <article class="panel dossier-card dossier-wide">
                 <div class="panel-heading"><div><p class="eyebrow">Documentação</p><h2>Documentos pessoais e contratuais</h2></div><button type="button" class="button secondary small" id="add-document">+ Documento</button></div>
                 <div class="record-list" id="documents-list"></div>
+                <p class="record-error" id="documents-error" role="alert"></p>
+                <input id="document-upload-input" type="file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" multiple hidden>
               </article>
               <article class="panel dossier-card dossier-wide">
                 <div class="panel-heading"><div><p class="eyebrow">Histórico funcional</p><h2>Movimentações, promoções e alterações</h2></div><button type="button" class="button secondary small" id="add-movement">+ Movimentação</button></div>
@@ -468,7 +470,6 @@
       <form method="dialog" id="record-form">
         <div class="dialog-heading"><div><p class="eyebrow">Dossiê do colaborador</p><h2 id="record-title">Novo registro</h2></div><button type="button" class="icon-button" id="close-record" aria-label="Fechar">×</button></div>
         <div id="record-fields" class="form-grid"></div>
-        <p class="record-error" id="record-error" role="alert"></p>
         <div class="dialog-actions"><button type="button" class="button secondary" id="cancel-record">Cancelar</button><button type="submit" class="button primary">Adicionar registro</button></div>
       </form>
     </dialog>
