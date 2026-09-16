@@ -401,6 +401,14 @@
             <article class="settings-card settings-list-card settings-navigation-card" data-settings-page="novo-superior" role="button" tabindex="0">
               <div><strong>Superiores diretos</strong><span>Cadastre os responsáveis que poderão ser vinculados.</span></div>
             </article>
+            <article class="settings-card settings-new-list-card">
+              <div><strong>Nova opção de cadastro</strong><span>Crie sua própria lista, como Turnos, Centros de custo ou Benefícios.</span></div>
+              <form class="settings-list-form" id="new-list-form">
+                <input required type="text" id="new-list-name" placeholder="Ex.: Turnos" aria-label="Nome da nova opção de cadastro" autocomplete="off">
+                <button type="submit" class="button primary">Criar</button>
+              </form>
+              <p class="settings-new-list-error" id="new-list-error" role="alert"></p>
+            </article>
           </div>
         </section>
         <section id="novo-departamento" class="tab-panel panel placeholder-panel settings-entry-panel hidden">
@@ -426,6 +434,14 @@
             <span class="settings-form-hint">Pressione Enter para adicionar</span>
           </form>
           <div class="settings-list settings-page-list" id="managers-list"></div>
+        </section>
+        <section id="lista-personalizada" class="tab-panel panel placeholder-panel settings-entry-panel hidden">
+          <div class="settings-page-heading"><div><h2 id="custom-list-title">Lista</h2></div><div class="settings-page-actions"><button type="button" class="button primary" id="custom-list-focus">+ Novo item</button><button type="button" class="button secondary" id="custom-list-delete">Excluir lista</button><button type="button" class="button secondary" data-settings-back>Voltar</button></div></div>
+          <form class="settings-create-form" id="custom-list-form">
+            <label id="custom-list-label">Novo item<input required type="text" placeholder="Digite o nome e pressione Enter" aria-label="Novo item da lista" autocomplete="off"></label>
+            <span class="settings-form-hint">Pressione Enter para adicionar</span>
+          </form>
+          <div class="settings-list settings-page-list" id="custom-list-items"></div>
         </section>
         <!-- Departamentos, cargos e superiores agora usam .combo (ver app.js). -->
       </main>

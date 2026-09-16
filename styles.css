@@ -125,6 +125,10 @@ button { cursor: pointer; }
 .settings-list-form { display: flex; gap: 8px; min-width: 0; }
 .settings-list-form input { min-width: 0; flex: 1; padding: 10px 12px; }
 .settings-list-form .button { flex-shrink: 0; }
+/* Card de criacao de novas listas de cadastro. */
+.settings-new-list-card { border-style: dashed; background: #fff; }
+.settings-new-list-error { grid-column: 1 / -1; margin: 0; color: var(--red); font-size: 11px; font-weight: 600; }
+.settings-new-list-error:empty { display: none; }
 .settings-list { display: grid; grid-column: 1 / -1; gap: 7px; }
 .settings-list-empty { display: grid; justify-items: center; gap: 7px; padding: 14px 12px; border: 1px dashed #cfd8e8; border-radius: 7px; color: var(--muted); font-size: 11px; text-align: center; }
 .settings-list-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 40px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 7px; background: #fff; color: var(--ink); font-size: 12px; }

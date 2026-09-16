@@ -336,6 +336,149 @@ function setupContractExpiration() {
   campoCalculado(PROBATION_PERIODS[1].inicio, "contract-date2-hint");
 }
 
+// =============================================================================
+// LISTAS DE CADASTRO CRIADAS PELO USUARIO
+// Departamentos, cargos e superiores sao fixos porque alimentam campos do
+// dossie. Estas aqui sao livres: o usuario cria a lista (Turnos, Centros de
+// custo...) e administra os itens na mesma pagina generica.
+// =============================================================================
+let customLists = JSON.parse(localStorage.getItem("customLists")) || [];
+
+function salvarCustomLists() {
+  localStorage.setItem("customLists", JSON.stringify(customLists));
+}
+
+function customListAtual() {
+  return customLists.find((lista) => lista.id === Number($("#lista-personalizada").dataset.listId));
+}
+
+function renderCustomListCards() {
+  const grade = document.querySelector(".settings-cards");
+  const novoCard = document.querySelector(".settings-new-list-card");
+  grade.querySelectorAll(".settings-custom-card").forEach((card) => card.remove());
+  customLists.forEach((lista) => {
+    const card = document.createElement("article");
+    card.className = "settings-card settings-list-card settings-navigation-card settings-custom-card";
+    card.setAttribute("role", "button");
+    card.tabIndex = 0;
+    const total = lista.itens.length;
+    card.innerHTML = `<div><strong>${escapeHtml(lista.nome)}</strong><span>${total ? `${total} item(ns) cadastrado(s).` : "Nenhum item cadastrado ainda."}</span></div>`;
+    const abrir = () => abrirCustomList(lista.id);
+    card.addEventListener("click", abrir);
+    card.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); abrir(); }
+    });
+    grade.insertBefore(card, novoCard);
+  });
+}
+
+function renderCustomListItems() {
+  const lista = customListAtual();
+  if (!lista) return;
+  $("#custom-list-title").textContent = lista.nome;
+  $("#custom-list-items").innerHTML = lista.itens.length
+    ? lista.itens.map((valor) => `<div class="settings-list-row"><span>${escapeHtml(valor)}</span><div class="settings-list-actions"><button type="button" class="settings-list-edit" data-edit-custom="${escapeHtml(valor)}">Editar</button><button type="button" class="settings-list-remove" data-remove-custom="${escapeHtml(valor)}">Remover</button></div></div>`).join("")
+    : `<div class="settings-list-empty">${zuzuMarkup("pensativo")}<span>Nenhum item cadastrado.</span></div>`;
+}
+
+function abrirCustomList(id) {
+  $("#lista-personalizada").dataset.listId = String(id);
+  renderCustomListItems();
+  activateTab("lista-personalizada");
+  history.replaceState(null, "", "#lista-personalizada");
+  $("#custom-list-form input").focus();
+}
+
+function criarCustomList(nome) {
+  const normalizado = nome.trim();
+  const recado = $("#new-list-error");
+  recado.textContent = "";
+  if (!normalizado) { recado.textContent = "D\u00ea um nome para a lista."; return null; }
+  const jaExiste = customLists.some((lista) => lista.nome.toLocaleLowerCase("pt-BR") === normalizado.toLocaleLowerCase("pt-BR"))
+    || ["departamentos", "cargos", "superiores diretos"].includes(normalizado.toLocaleLowerCase("pt-BR"));
+  if (jaExiste) { recado.textContent = "J\u00e1 existe uma op\u00e7\u00e3o de cadastro com esse nome."; return null; }
+  const lista = { id: Date.now(), nome: normalizado, itens: [] };
+  customLists.push(lista);
+  customLists.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  salvarCustomLists();
+  renderCustomListCards();
+  return lista;
+}
+
+function addCustomListItem(valor) {
+  const lista = customListAtual();
+  const normalizado = valor.trim();
+  if (!lista || !normalizado) return;
+  if (lista.itens.some((item) => item.toLocaleLowerCase("pt-BR") === normalizado.toLocaleLowerCase("pt-BR"))) return;
+  lista.itens.push(normalizado);
+  lista.itens.sort((a, b) => a.localeCompare(b, "pt-BR"));
+  salvarCustomLists();
+  renderCustomListItems();
+  renderCustomListCards();
+}
+
+function setupCustomLists() {
+  renderCustomListCards();
+
+  $("#new-list-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const campo = $("#new-list-name");
+    const lista = criarCustomList(campo.value);
+    if (!lista) return;
+    campo.value = "";
+    abrirCustomList(lista.id);
+  });
+
+  $("#custom-list-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const campo = $("#custom-list-form input");
+    addCustomListItem(campo.value);
+    campo.value = "";
+    campo.focus();
+  });
+
+  $("#custom-list-focus").addEventListener("click", () => $("#custom-list-form input").focus());
+
+  $("#custom-list-delete").addEventListener("click", () => {
+    const lista = customListAtual();
+    if (!lista) return;
+    // Apagar a lista leva junto todos os itens dela, entao confirmamos antes.
+    if (!window.confirm(`Excluir a op\u00e7\u00e3o "${lista.nome}" e os ${lista.itens.length} item(ns) dela?`)) return;
+    customLists = customLists.filter((item) => item.id !== lista.id);
+    salvarCustomLists();
+    renderCustomListCards();
+    activateTab("cadastro-configuracoes");
+    history.replaceState(null, "", "#cadastro-configuracoes");
+  });
+
+  $("#custom-list-items").addEventListener("click", (event) => {
+    const lista = customListAtual();
+    if (!lista) return;
+    const remover = event.target.closest("[data-remove-custom]");
+    if (remover) {
+      lista.itens = lista.itens.filter((item) => item !== remover.dataset.removeCustom);
+      salvarCustomLists();
+      renderCustomListItems();
+      renderCustomListCards();
+      return;
+    }
+    const editar = event.target.closest("[data-edit-custom]");
+    if (editar) {
+      const atual = editar.dataset.editCustom;
+      const novo = window.prompt("Editar item", atual);
+      if (novo === null) return;
+      const normalizado = novo.trim();
+      if (!normalizado) return;
+      const duplicado = lista.itens.some((item) => item !== atual && item.toLocaleLowerCase("pt-BR") === normalizado.toLocaleLowerCase("pt-BR"));
+      if (duplicado) return;
+      lista.itens = lista.itens.map((item) => (item === atual ? normalizado : item));
+      lista.itens.sort((a, b) => a.localeCompare(b, "pt-BR"));
+      salvarCustomLists();
+      renderCustomListItems();
+    }
+  });
+}
+
 function setupCombos() {
   document.querySelectorAll(".combo").forEach((combo) => {
     const input = combo.querySelector("input");
@@ -513,7 +656,7 @@ async function lookupAddressByCep() {
 
 function activateTab(tabName, subtabName = "") {
   const showDocuments = tabName === "dossie";
-  const showSettingsEntry = ["novo-departamento", "novo-cargo", "novo-superior"].includes(tabName);
+  const showSettingsEntry = ["novo-departamento", "novo-cargo", "novo-superior", "lista-personalizada"].includes(tabName);
   document.body.classList.toggle("dossier-view", tabName === "dossie");
   document.body.classList.toggle("employee-list-view", tabName === "colaboradores");
   document.body.classList.toggle("settings-entry-view", showSettingsEntry);
@@ -1498,6 +1641,7 @@ document.querySelectorAll(".settings-list").forEach((list) => {
   });
 });
 setupCombos();
+setupCustomLists();
 setupContractExpiration();
 refreshSettingsLists();
 setupEmployeeFilters();
