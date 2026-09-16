@@ -45,7 +45,8 @@ localStorage.setItem("employees", JSON.stringify(employees));
 const initialSettingsLists = {
   departments: ["Recursos Humanos"],
   roles: ["Analista de Departamento Pessoal"],
-  managers: ["Gestor responsável"]
+  managers: ["Gestor responsável"],
+  movementTypes: ["Advertência", "Alteração Salarial", "Ocorrências", "Promoção"]
 };
 let settingsLists = JSON.parse(localStorage.getItem("settingsLists")) || initialSettingsLists;
 Object.keys(initialSettingsLists).forEach((key) => {
@@ -489,8 +490,10 @@ function setupCustomLists() {
   });
 }
 
-function setupCombos() {
-  document.querySelectorAll(".combo").forEach((combo) => {
+// Liga um combo especifico. O combo do dialogo de movimentacao e criado na
+// hora, entao precisa ser ligado depois que o HTML e montado.
+function setupCombo(combo) {
+  {
     const input = combo.querySelector("input");
     const toggle = combo.querySelector(".combo-toggle");
     const menu = combo.querySelector(".combo-menu");
@@ -532,8 +535,11 @@ function setupCombos() {
     });
 
     input.addEventListener("blur", () => { window.setTimeout(() => closeCombo(combo), 120); });
-  });
+  }
+}
 
+function setupCombos() {
+  document.querySelectorAll(".combo").forEach(setupCombo);
   document.addEventListener("click", (event) => {
     document.querySelectorAll(".combo.open").forEach((combo) => {
       if (!combo.contains(event.target)) closeCombo(combo);
@@ -542,7 +548,7 @@ function setupCombos() {
 }
 
 function refreshSettingsLists() {
-  ["departments", "roles", "managers"].forEach((key) => {
+  ["departments", "roles", "managers", "movementTypes"].forEach((key) => {
     const list = $(`#${key}-list`);
     list.innerHTML = settingsLists[key].length
       ? settingsLists[key].map((value) => `<div class="settings-list-row"><span>${escapeHtml(value)}</span><div class="settings-list-actions"><button type="button" class="settings-list-edit" data-edit-setting="${key}" data-setting-value="${escapeHtml(value)}">Editar</button><button type="button" class="settings-list-remove" data-remove-setting="${key}" data-setting-value="${escapeHtml(value)}">Remover</button></div></div>`).join("")
@@ -666,7 +672,7 @@ async function lookupAddressByCep() {
 
 function activateTab(tabName, subtabName = "") {
   const showDocuments = tabName === "dossie";
-  const showSettingsEntry = ["novo-departamento", "novo-cargo", "novo-superior", "lista-personalizada"].includes(tabName);
+  const showSettingsEntry = ["novo-departamento", "novo-cargo", "novo-superior", "novo-tipo-movimentacao", "lista-personalizada"].includes(tabName);
   document.body.classList.toggle("dossier-view", tabName === "dossie");
   document.body.classList.toggle("employee-list-view", tabName === "colaboradores");
   document.body.classList.toggle("settings-entry-view", showSettingsEntry);
@@ -1339,14 +1345,22 @@ async function anexarDocumentos(arquivos) {
 
 function addEmployeeRecord(field) {
   const configs = {
-    movements: { title: "Nova movimentação", fields: [["record-type", "Tipo (admissão, promoção, alteração)"], ["record-description", "Descrição"], ["record-date", "Data", "date"]] },
+    movements: { title: "Nova movimentação", fields: [["record-type", "Tipo", "combo", "movementTypes"], ["record-description", "Descrição"], ["record-date", "Data", "date"]] },
     trainings: { title: "Novo treinamento", fields: [["record-name", "Nome do treinamento"], ["record-hours", "Carga horária"], ["record-date", "Data", "date"]] },
     feedbacks: { title: "Novo registro", fields: [["record-type", "Tipo (feedback, advertência, comunicado, avaliação)"], ["record-description", "Descrição"], ["record-date", "Data", "date"]] },
     medical: { title: "Novo atestado", fields: [["record-date", "Data do atestado", "date"], ["record-cid", "CID"], ["record-days", "Quantidade de dias", "number"], ["record-doctor", "Nome do médico"], ["record-partial", "Atestado parcial", "checkbox"]] }
   };
   const config = configs[field];
   $("#record-title").textContent = config.title;
-  $("#record-fields").innerHTML = config.fields.map(([id, label, type = "text", attrs = ""]) => type === "checkbox" ? `<label class="check-field"><input id="${id}" type="checkbox">${label}</label>` : `<label class="${type === "file" ? "full-width" : ""}">${label}<input id="${id}" type="${type}" ${attrs}></label>`).join("");
+  $("#record-fields").innerHTML = config.fields.map(([id, label, type = "text", extra = ""]) => {
+    if (type === "checkbox") return `<label class="check-field"><input id="${id}" type="checkbox">${label}</label>`;
+    if (type === "combo") {
+      return `<label>${label}<span class="combo" data-combo="${extra}"><input id="${id}" placeholder="Pesquisar ou digitar" autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list"><button type="button" class="combo-toggle" tabindex="-1" aria-label="Ver op\u00e7\u00f5es">\u25be</button><span class="combo-menu" role="listbox"></span></span></label>`;
+    }
+    return `<label class="${type === "file" ? "full-width" : ""}">${label}<input id="${id}" type="${type}" ${extra}></label>`;
+  }).join("");
+  // Combos montados agora precisam ser ligados na mao.
+  $("#record-fields").querySelectorAll(".combo").forEach(setupCombo);
   $("#record-dialog").dataset.field = field;
   $("#record-dialog").showModal();
 }

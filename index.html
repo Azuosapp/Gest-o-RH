@@ -404,6 +404,9 @@
             <article class="settings-card settings-list-card settings-navigation-card" data-settings-page="novo-superior" role="button" tabindex="0">
               <div><strong>Superiores diretos</strong><span>Cadastre os responsáveis que poderão ser vinculados.</span></div>
             </article>
+            <article class="settings-card settings-list-card settings-navigation-card" data-settings-page="novo-tipo-movimentacao" role="button" tabindex="0">
+              <div><strong>Tipos de movimentação</strong><span>Opções do campo Tipo em Nova movimentação.</span></div>
+            </article>
           </div>
         </section>
         <section id="novo-departamento" class="tab-panel panel placeholder-panel settings-entry-panel hidden">
@@ -429,6 +432,14 @@
             <span class="settings-form-hint">Pressione Enter para adicionar</span>
           </form>
           <div class="settings-list settings-page-list" id="managers-list"></div>
+        </section>
+        <section id="novo-tipo-movimentacao" class="tab-panel panel placeholder-panel settings-entry-panel hidden">
+          <div class="settings-page-heading"><div><h2>Tipos de movimentação</h2></div><div class="settings-page-actions"><button type="button" class="button primary" data-settings-focus="movementTypes">+ Novo tipo</button><button type="button" class="button secondary" data-settings-back>Voltar</button></div></div>
+          <form class="settings-create-form" data-settings-form="movementTypes">
+            <label>Novo tipo de movimentação<input required type="text" placeholder="Ex.: Promoção" aria-label="Nome do novo tipo de movimentação"></label>
+            <span class="settings-form-hint">Pressione Enter para adicionar</span>
+          </form>
+          <div class="settings-list settings-page-list" id="movementTypes-list"></div>
         </section>
         <section id="lista-personalizada" class="tab-panel panel placeholder-panel settings-entry-panel hidden">
           <div class="settings-page-heading"><div><h2 id="custom-list-title">Lista</h2></div><div class="settings-page-actions"><button type="button" class="button primary" id="custom-list-focus">+ Novo item</button><button type="button" class="button secondary" id="custom-list-delete">Excluir lista</button><button type="button" class="button secondary" data-settings-back>Voltar</button></div></div>
