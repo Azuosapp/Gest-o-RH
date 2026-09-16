@@ -524,6 +524,7 @@ function activateTab(tabName, subtabName = "") {
   // A home so era desenhada no carregamento da pagina. Quem editava um
   // colaborador e voltava pra ca via o lembrete de experiencias desatualizado.
   if (tabName === "dashboard") renderProbationReminders();
+  if (tabName === "acompanhamento") renderFollowup();
 }
 
 function vacationRecords() {
@@ -723,12 +724,15 @@ function probationSchedule(employee) {
 
 function probationDeadlines() {
   return employees.filter((employee) => employee.status !== "Desligado").flatMap((employee) => {
+    // Quem ja foi efetivado ou teve o contrato encerrado sai do lembrete, e um
+    // periodo com decisao registrada (ex.: 1o prorrogado) deixa de ser avisado.
+    if (probationFinalDecision(employee)) return [];
     const { venc1, venc2 } = probationSchedule(employee);
     return [
-      { rotulo: "1\u00ba per\u00edodo", data: venc1 },
-      { rotulo: "2\u00ba per\u00edodo", data: venc2 }
-    ].map(({ rotulo, data }) => {
-      if (!data) return null;
+      { periodo: "1", rotulo: "1\u00ba per\u00edodo", data: venc1 },
+      { periodo: "2", rotulo: "2\u00ba per\u00edodo", data: venc2 }
+    ].map(({ periodo, rotulo, data }) => {
+      if (!data || probationDecisionFor(employee, periodo)) return null;
       const dias = daysUntil(data);
       if (dias > PROBATION_ALERT_AHEAD || dias < -PROBATION_ALERT_BEHIND) return null;
       return {
@@ -757,6 +761,292 @@ function renderProbationReminders() {
     return `<button type="button" class="pending-item probation-item ${estado}" data-probation-employee="${item.id}" aria-label="Abrir ${escapeHtml(item.nome)}"><div><strong>${escapeHtml(item.nome)}</strong><span>${escapeHtml(item.cargo)} \u00b7 ${item.rotulo} at\u00e9 ${formatDate(item.data)}</span></div><b>${prazo}</b></button>`;
   }).join("") : emptyState("Nenhuma experi\u00eancia vencendo nos pr\u00f3ximos 30 dias.", null);
 }
+
+// =============================================================================
+// FEEDBACK E EXPERIENCIA (aba acompanhamento)
+// Os feedbacks moram em employee.feedbacks, o MESMO historico que o dossie
+// mostra em "Feedbacks, advertencias e avaliacoes" - registrar aqui aparece la
+// e vice-versa. As decisoes sobre a experiencia ficam em
+// employee.probationDecisions: [{ id, periodo, resultado, data, responsavel,
+// observacoes }], uma por periodo.
+// =============================================================================
+const FEEDBACK_TYPES = ["Feedback positivo", "Feedback construtivo", "Avaliação de desempenho", "Avaliação de experiência", "Advertência", "Comunicado"];
+const PROBATION_SOON_DAYS = 15;
+const FINAL_PROBATION_RESULTS = ["Efetivado", "Encerrado"];
+
+function todayIsoLocal() {
+  const agora = new Date();
+  return new Date(Date.UTC(agora.getFullYear(), agora.getMonth(), agora.getDate())).toISOString().slice(0, 10);
+}
+
+function probationDecisionFor(employee, periodo) {
+  return (employee.probationDecisions || []).find((decisao) => decisao.periodo === periodo) || null;
+}
+
+function probationFinalDecision(employee) {
+  return (employee.probationDecisions || []).find((decisao) => FINAL_PROBATION_RESULTS.includes(decisao.resultado)) || null;
+}
+
+function deadlineLabel(dias) {
+  if (dias < 0) return `Venceu há ${Math.abs(dias)} dia(s)`;
+  if (dias === 0) return "Vence hoje";
+  return `Vence em ${dias} dia(s)`;
+}
+
+// Situacao do contrato de experiencia de um colaborador, ou null se ele nao
+// tem periodo calculavel. "pendente" e o primeiro periodo ainda sem decisao.
+function probationStatus(employee) {
+  const { venc1, venc2 } = probationSchedule(employee);
+  const periodos = [
+    { periodo: "1", rotulo: "1º período", data: venc1 },
+    { periodo: "2", rotulo: "2º período", data: venc2 }
+  ].filter((item) => item.data);
+  if (!periodos.length) return null;
+
+  const final = probationFinalDecision(employee);
+  if (final) return { employee, periodos, final, pendente: null, situacao: "concluida" };
+
+  const pendente = periodos.find((item) => !probationDecisionFor(employee, item.periodo));
+  if (!pendente) {
+    // Tudo decidido mas sem efetivar/encerrar: foi prorrogado e o 2o periodo
+    // ainda nao foi preenchido no cadastro.
+    return { employee, periodos, final: null, pendente: null, situacao: "incompleta" };
+  }
+  const dias = daysUntil(pendente.data);
+  const situacao = dias < 0 ? "vencida" : dias <= PROBATION_SOON_DAYS ? "vencendo" : "andamento";
+  return { employee, periodos, final: null, pendente: { ...pendente, dias }, situacao };
+}
+
+const PROBATION_ORDER = { vencida: 0, vencendo: 1, incompleta: 2, andamento: 3, concluida: 4 };
+
+function renderProbationControl(query) {
+  const filtro = $("#followup-probation-filter").value;
+  const todos = employees.filter((employee) => employee.status !== "Desligado").map(probationStatus).filter(Boolean);
+  $("#followup-probation-count").textContent = todos.filter((item) => item.situacao !== "concluida").length;
+  $("#followup-overdue-count").textContent = todos.filter((item) => item.situacao === "vencida").length;
+
+  const visiveis = todos
+    .filter((item) => !query || String(item.employee.name || "").toLowerCase().includes(query))
+    .filter((item) => !filtro || item.situacao === filtro || (filtro === "andamento" && item.situacao === "incompleta"))
+    .sort((a, b) => PROBATION_ORDER[a.situacao] - PROBATION_ORDER[b.situacao]
+      || String(a.pendente?.data || "").localeCompare(String(b.pendente?.data || "")));
+  $("#followup-probation-total").textContent = `${visiveis.length} de ${todos.length} contrato(s)`;
+
+  if (!todos.length) {
+    $("#probation-control-list").innerHTML = emptyState("Nenhum colaborador com contrato de experiência. Preencha o início e a duração dos períodos no cadastro do colaborador.", "relogio");
+    return;
+  }
+  if (!visiveis.length) {
+    $("#probation-control-list").innerHTML = emptyState("Nenhum contrato de experiência com esses filtros.", null);
+    return;
+  }
+
+  $("#probation-control-list").innerHTML = visiveis.map(({ employee, periodos, final, pendente, situacao }) => {
+    const linhasPeriodo = periodos.map((item) => {
+      const decisao = probationDecisionFor(employee, item.periodo);
+      const ehPendente = !final && pendente && pendente.periodo === item.periodo;
+      const detalhe = decisao
+        ? `${escapeHtml(decisao.resultado)} em ${formatDate(decisao.data)}`
+        : final ? "Sem decisão" : ehPendente ? "Aguardando decisão" : deadlineLabel(daysUntil(item.data));
+      const classe = decisao || final ? "decidido" : pendente && pendente.periodo === item.periodo ? "pendente" : "";
+      return `<span class="probation-period ${classe}">${item.rotulo} até ${formatDate(item.data)} · ${detalhe}</span>`;
+    }).join("");
+
+    let lado;
+    if (situacao === "concluida") {
+      const tom = final.resultado === "Efetivado" ? "approved" : "rejected";
+      lado = `<span class="badge ${tom}">${escapeHtml(final.resultado)}</span>`;
+    } else if (situacao === "incompleta") {
+      lado = `<b class="probation-deadline">Preencha o 2º período no cadastro</b><button type="button" class="button secondary small" data-probation-decide="${employee.id}">Registrar decisão</button>`;
+    } else {
+      lado = `<b class="probation-deadline">${deadlineLabel(pendente.dias)}</b><button type="button" class="button secondary small" data-probation-decide="${employee.id}">Registrar decisão</button>`;
+    }
+
+    return `<div class="record-row probation-row ${situacao}">
+      <div class="probation-row-main"><button type="button" class="link-button" data-open-followup-employee="${employee.id}"><strong>${escapeHtml(employee.name || "Sem nome")}</strong></button><span>${escapeHtml(employee.role || "Cargo não informado")}</span></div>
+      <div class="probation-periods">${linhasPeriodo}</div>
+      <div class="probation-row-side">${lado}</div>
+    </div>`;
+  }).join("");
+}
+
+function feedbackTone(type) {
+  const valor = String(type || "").toLowerCase();
+  if (valor.includes("positivo")) return "approved";
+  if (valor.includes("advert")) return "rejected";
+  if (valor.includes("avalia") || valor.includes("construtivo")) return "hired";
+  return "waiting";
+}
+
+function feedbackRecords() {
+  return employees.flatMap((employee) => (employee.feedbacks || []).map((record, index) => ({
+    ...record, index, employeeId: employee.id, employeeName: employee.name || "Sem nome"
+  })));
+}
+
+function refreshFeedbackTypeFilter() {
+  const select = $("#followup-feedback-filter");
+  const atual = select.value;
+  const tipos = [...new Set([...FEEDBACK_TYPES, ...feedbackRecords().map((record) => record.type).filter(Boolean)])];
+  select.innerHTML = `<option value="">Todos os tipos</option>${tipos.map((tipo) => `<option>${escapeHtml(tipo)}</option>`).join("")}`;
+  select.value = tipos.includes(atual) ? atual : "";
+}
+
+function renderFeedbackHistory(query) {
+  const tipo = $("#followup-feedback-filter").value;
+  const todos = feedbackRecords();
+  $("#followup-feedback-count").textContent = todos.filter((record) => {
+    const dias = daysUntil(record.date);
+    return dias <= 0 && dias >= -30;
+  }).length;
+
+  const visiveis = todos
+    .filter((record) => !tipo || record.type === tipo)
+    .filter((record) => !query || [record.employeeName, record.type, record.description, record.author, record.actions]
+      .some((valor) => String(valor || "").toLowerCase().includes(query)))
+    .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+  $("#followup-feedback-total").textContent = `${visiveis.length} registro(s)`;
+
+  if (!visiveis.length) {
+    $("#feedback-history").innerHTML = emptyState(todos.length
+      ? "Nenhum feedback com esses filtros."
+      : "Nenhum feedback registrado ainda. Use Registrar feedback para começar o histórico.", null);
+    return;
+  }
+  $("#feedback-history").innerHTML = visiveis.map((record) => `<article class="feedback-entry tone-${feedbackTone(record.type)}">
+      <div class="feedback-entry-head">
+        <span class="badge ${feedbackTone(record.type)}">${escapeHtml(record.type || "Registro")}</span>
+        <button type="button" class="link-button" data-open-followup-employee="${record.employeeId}"><strong>${escapeHtml(record.employeeName)}</strong></button>
+        <span class="muted">${formatDate(record.date)}${record.author ? ` · por ${escapeHtml(record.author)}` : ""}</span>
+        <button type="button" class="remove-record" data-remove-feedback="${record.employeeId}:${record.index}">Remover</button>
+      </div>
+      ${record.description ? `<p>${escapeHtml(record.description)}</p>` : ""}
+      ${record.actions ? `<p class="feedback-entry-actions"><b>Combinados:</b> ${escapeHtml(record.actions)}</p>` : ""}
+    </article>`).join("");
+}
+
+function renderFollowup() {
+  const query = $("#followup-search").value.toLowerCase().trim();
+  refreshFeedbackTypeFilter();
+  renderProbationControl(query);
+  renderFeedbackHistory(query);
+}
+
+// Mantem o dossie aberto em sincronia quando o registro muda por esta aba.
+function refreshOpenDossier(employee) {
+  if (Number($("#employee-id").value) === employee.id) renderEmployeeRecords(employee);
+}
+
+function openFeedbackEntry(employeeId) {
+  $("#feedback-entry-form").reset();
+  $("#feedback-entry-employee").innerHTML = employees
+    .filter((employee) => employee.status !== "Desligado")
+    .map((employee) => `<option value="${employee.id}">${escapeHtml(employee.name || "Sem nome")}</option>`).join("");
+  if (employeeId) $("#feedback-entry-employee").value = String(employeeId);
+  $("#feedback-entry-date").value = todayIsoLocal();
+  $("#feedback-entry-dialog").showModal();
+}
+
+function openProbationDecision(employee) {
+  const status = probationStatus(employee);
+  if (!status) return;
+  const alvo = status.pendente || status.periodos[status.periodos.length - 1];
+  const dialog = $("#probation-decision-dialog");
+  dialog.dataset.employeeId = employee.id;
+  dialog.dataset.periodo = alvo.periodo;
+  $("#probation-decision-form").reset();
+  $("#probation-decision-title").textContent = `Decisão do ${alvo.rotulo}`;
+  $("#probation-decision-context").textContent = `${employee.name || "Sem nome"} · ${alvo.rotulo} até ${formatDate(alvo.data)} · ${deadlineLabel(daysUntil(alvo.data))}`;
+  // Prorrogar so existe a partir do 1o periodo; no 2o a experiencia termina.
+  const opcoes = alvo.periodo === "1" ? ["Prorrogado", "Efetivado", "Encerrado"] : ["Efetivado", "Encerrado"];
+  $("#probation-decision-result").innerHTML = `<option value="">Selecione</option>${opcoes.map((opcao) => `<option>${opcao}</option>`).join("")}`;
+  $("#probation-decision-date").value = todayIsoLocal();
+  $("#probation-decision-hint").textContent = "";
+  dialog.showModal();
+}
+
+$("#add-feedback-entry").addEventListener("click", () => openFeedbackEntry());
+["#close-feedback-entry", "#cancel-feedback-entry"].forEach((selector) => $(selector).addEventListener("click", () => $("#feedback-entry-dialog").close()));
+["#close-probation-decision", "#cancel-probation-decision"].forEach((selector) => $(selector).addEventListener("click", () => $("#probation-decision-dialog").close()));
+["#followup-search", "#followup-probation-filter", "#followup-feedback-filter"].forEach((selector) => $(selector).addEventListener("input", renderFollowup));
+
+$("#feedback-entry-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const employee = employees.find((item) => item.id === Number($("#feedback-entry-employee").value));
+  if (!employee) return;
+  if (!Array.isArray(employee.feedbacks)) employee.feedbacks = [];
+  employee.feedbacks.push({
+    id: Date.now(),
+    type: $("#feedback-entry-type").value,
+    date: $("#feedback-entry-date").value,
+    author: $("#feedback-entry-author").value.trim(),
+    description: $("#feedback-entry-description").value.trim(),
+    actions: $("#feedback-entry-actions").value.trim()
+  });
+  localStorage.setItem("employees", JSON.stringify(employees));
+  refreshOpenDossier(employee);
+  renderFollowup();
+  $("#feedback-entry-dialog").close();
+});
+
+$("#probation-decision-result").addEventListener("change", () => {
+  const employee = employees.find((item) => item.id === Number($("#probation-decision-dialog").dataset.employeeId));
+  const semSegundo = employee && !probationSchedule(employee).venc2;
+  $("#probation-decision-hint").textContent = $("#probation-decision-result").value === "Prorrogado" && semSegundo
+    ? "Depois de salvar, preencha a duração do 2º período no cadastro do colaborador para acompanhar o novo vencimento."
+    : "";
+});
+
+$("#probation-decision-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const dialog = $("#probation-decision-dialog");
+  const employee = employees.find((item) => item.id === Number(dialog.dataset.employeeId));
+  if (!employee) return;
+  const periodo = dialog.dataset.periodo;
+  // Uma decisao por periodo: registrar de novo substitui a anterior.
+  employee.probationDecisions = (employee.probationDecisions || []).filter((decisao) => decisao.periodo !== periodo);
+  employee.probationDecisions.push({
+    id: Date.now(),
+    periodo,
+    resultado: $("#probation-decision-result").value,
+    data: $("#probation-decision-date").value,
+    responsavel: $("#probation-decision-author").value.trim(),
+    observacoes: $("#probation-decision-notes").value.trim()
+  });
+  localStorage.setItem("employees", JSON.stringify(employees));
+  renderFollowup();
+  renderProbationReminders();
+  dialog.close();
+});
+
+$("#acompanhamento").addEventListener("click", (event) => {
+  const abrir = event.target.closest("[data-open-followup-employee]");
+  if (abrir) {
+    const employee = employees.find((item) => item.id === Number(abrir.dataset.openFollowupEmployee));
+    if (!employee) return;
+    fillEmployeeForm(employee);
+    activateTab("dossie");
+    history.replaceState(null, "", "#dossie");
+    return;
+  }
+  const decidir = event.target.closest("[data-probation-decide]");
+  if (decidir) {
+    const employee = employees.find((item) => item.id === Number(decidir.dataset.probationDecide));
+    if (employee) openProbationDecision(employee);
+    return;
+  }
+  const remover = event.target.closest("[data-remove-feedback]");
+  if (remover) {
+    const [employeeId, index] = remover.dataset.removeFeedback.split(":").map(Number);
+    const employee = employees.find((item) => item.id === employeeId);
+    if (!employee || !employee.feedbacks?.[index]) return;
+    if (!confirm("Remover este feedback do histórico? Ele também sai do cadastro do colaborador.")) return;
+    employee.feedbacks.splice(index, 1);
+    localStorage.setItem("employees", JSON.stringify(employees));
+    refreshOpenDossier(employee);
+    renderFollowup();
+  }
+});
 
 function render() {
   renderDashboard();
@@ -955,7 +1245,7 @@ function renderEmployeeRecords(employee) {
   list("documents", "Nenhum documento cadastrado.", (record, index) => `<div class="record-row"><div><strong>${record.name}</strong><span>${record.type || "Documento"} · ${record.date || "Sem data"}</span></div><button type="button" class="remove-record" data-record="documents" data-index="${index}">Remover</button></div>`);
   list("movements", "Nenhuma movimentação cadastrada.", (record, index) => `<div class="record-row"><div><strong>${record.date || "Sem data"} · ${record.type}</strong><span>${record.description || ""} ${record.role ? `· ${record.role}` : ""}</span></div><button type="button" class="remove-record" data-record="movements" data-index="${index}">Remover</button></div>`);
   list("trainings", "Nenhum treinamento cadastrado.", (record, index) => `<div class="record-row"><div><strong>${record.name}</strong><span>${record.date || "Sem data"} · ${record.hours || "Carga não informada"}</span></div><button type="button" class="remove-record" data-record="trainings" data-index="${index}">Remover</button></div>`);
-  list("feedbacks", "Nenhum registro cadastrado.", (record, index) => `<div class="record-row"><div><strong>${record.type} · ${record.date || "Sem data"}</strong><span>${record.description || ""}</span></div><button type="button" class="remove-record" data-record="feedbacks" data-index="${index}">Remover</button></div>`);
+  list("feedbacks", "Nenhum registro cadastrado.", (record, index) => `<div class="record-row"><div><strong>${escapeHtml(record.type)} · ${formatDate(record.date)}${record.author ? ` · por ${escapeHtml(record.author)}` : ""}</strong><span>${escapeHtml(record.description || "")}${record.actions ? ` · Combinados: ${escapeHtml(record.actions)}` : ""}</span></div><button type="button" class="remove-record" data-record="feedbacks" data-index="${index}">Remover</button></div>`);
   list("medical", "Nenhum atestado cadastrado.", (record, index) => `<div class="record-row"><div><strong>${record.date || "Sem data"} · ${record.days || 0} dia(s)${record.partial ? " · Parcial" : ""}</strong><span>CID: ${record.cid || "Não informado"} · Médico: ${record.doctor || "Não informado"}</span></div><button type="button" class="remove-record" data-record="medical" data-index="${index}">Remover</button></div>`);
 }
 
@@ -1392,6 +1682,7 @@ renderEmployeeList();
 refreshDocumentsEmployeePicker();
 refreshVacationEmployees();
 renderVacations();
+renderFollowup();
 const initialTab = location.hash.replace("#", "") || "dashboard";
 const visibleInitialTab = initialTab === "dossie" ? "colaboradores" : initialTab;
 if (visibleInitialTab !== initialTab) history.replaceState(null, "", `#${visibleInitialTab}`);
