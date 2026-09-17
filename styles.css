@@ -492,3 +492,45 @@ dialog form { padding: 27px; }
   .document-card { grid-template-columns: 1fr; }
   .document-card-actions { flex-wrap: wrap; }
 }
+
+/* =============================================================================
+ * FEEDBACK E EXPERIENCIA (aba acompanhamento)
+ * Reaproveita hero, filtros e metricas da tela de ferias.
+ * ========================================================================== */
+.followup-panel { margin-bottom: 20px; }
+.link-button { border: 0; background: transparent; padding: 0; font: inherit; color: var(--navy); text-align: left; cursor: pointer; }
+.link-button:hover strong, .link-button:focus-visible strong { text-decoration: underline; }
+
+.probation-row { align-items: center; gap: 18px; }
+.probation-row-main { flex: 1 1 190px; min-width: 0; }
+.probation-periods { flex: 1.4 1 260px; display: grid; gap: 3px; }
+.record-row .probation-period { margin-top: 0; color: var(--muted); }
+.record-row .probation-period.pendente { color: var(--ink); font-weight: 600; }
+.probation-row-side { flex: 0 0 300px; display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
+.probation-deadline { color: var(--orange); font-size: 11px; white-space: nowrap; }
+.probation-row.vencida { border-color: #f1cccc; background: #fff8f8; }
+.probation-row.vencida .probation-deadline { color: var(--red); }
+.probation-row.incompleta .probation-deadline { color: var(--muted); }
+/* .record-row span/strong viram bloco; o badge precisa continuar em linha */
+.probation-row .badge, .feedback-entry .badge { display: inline-flex; margin-top: 0; }
+
+.feedback-timeline { display: grid; gap: 10px; }
+.feedback-entry { border: 1px solid var(--line); border-left: 3px solid var(--azuos-blue); border-radius: 9px; padding: 12px 14px; background: #fbfcff; }
+.feedback-entry.tone-approved { border-left-color: #146f4c; }
+.feedback-entry.tone-rejected { border-left-color: var(--red); }
+.feedback-entry.tone-waiting { border-left-color: var(--line); }
+.feedback-entry-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.feedback-entry-head strong { color: var(--navy); font-size: 13px; }
+.feedback-entry-head .muted { font-size: 11px; }
+.feedback-entry-head .remove-record { margin-left: auto; }
+.feedback-entry p { margin: 8px 0 0; color: var(--ink); font-size: 12px; line-height: 1.55; white-space: pre-line; overflow-wrap: anywhere; }
+.feedback-entry .feedback-entry-actions { color: var(--muted); }
+.feedback-entry-note { margin: 14px 0 0; }
+.probation-decision-context { margin: -8px 0 16px; color: var(--muted); font-size: 12px; }
+
+@media (max-width: 900px) {
+  .probation-row { flex-wrap: wrap; }
+  .probation-row-side { flex-basis: 100%; justify-content: space-between; }
+}
+
+.followup-panel .panel-heading .muted { white-space: nowrap; }

@@ -32,31 +32,117 @@ const initialCandidates = [
   { id: 8, name: "Dandara Silva Fraga", phone: "62 8271-2416", job: "Analista Paralegal", experience: "3 anos a 5 anos", salary: "R$ 3.000,00", source: "Catho", owner: "Letícia", status: "Reprovado 1° Fase", lastContact: "30/06/2026", notes: "Não compareceu" }
 ];
 
-let candidates = JSON.parse(localStorage.getItem("candidates")) || initialCandidates;
+// =============================================================================
+// ARMAZENAMENTO NO NAVEGADOR
+// Ler: dado corrompido ou localStorage bloqueado nao pode derrubar a tela, entao
+// cai nos dados de demonstracao (sempre copia, nunca a constante original).
+// Gravar: o limite e de ~5 MB e documentos viram base64 aqui dentro. Quando a
+// gravacao falha, avisamos e quem chamou desfaz a alteracao em memoria.
+// =============================================================================
+let appInitializing = true; // na abertura da pagina, falha de gravacao so vai pro console
+const corruptedStorageKeys = new Set(); // nao sobrescrever na abertura o que nao conseguimos ler
+const MAX_DOCUMENT_SIZE = 2 * 1024 * 1024;
+
+function cloneData(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function readStorage(key, fallback, isValid = () => true) {
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (raw !== null) {
+      const parsed = JSON.parse(raw);
+      if (parsed !== null && isValid(parsed)) return parsed;
+      corruptedStorageKeys.add(key);
+      console.error(`Dados salvos em "${key}" estão num formato inesperado. Usando os dados de demonstração.`);
+    }
+  } catch (error) {
+    corruptedStorageKeys.add(key);
+    console.error(`Não foi possível ler "${key}" do armazenamento do navegador. Usando os dados de demonstração.`, error);
+  }
+  return cloneData(fallback);
+}
+
+function storageErrorMessage(error) {
+  const quota = error && (error.name === "QuotaExceededError" || error.name === "NS_ERROR_DOM_QUOTA_REACHED" || error.code === 22 || error.code === 1014);
+  return quota
+    ? "Não foi possível salvar: o espaço de armazenamento do navegador está cheio.\n\nA última alteração NÃO foi salva. Remova documentos grandes ou antigos e tente novamente."
+    : "Não foi possível salvar os dados neste navegador (o armazenamento pode estar bloqueado ou indisponível).\n\nA última alteração NÃO foi salva.";
+}
+
+function writeStorage(key, value, { silent = false } = {}) {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch (error) {
+    console.error(`Falha ao gravar "${key}" no armazenamento do navegador:`, error);
+    if (!silent && !appInitializing) alert(storageErrorMessage(error));
+    return false;
+  }
+}
+
+// Ids unicos mesmo quando dois registros nascem no mesmo milissegundo.
+let lastGeneratedId = 0;
+function generateId(items = []) {
+  const maxExisting = items.reduce((max, item) => Math.max(max, Number(item?.id) || 0), 0);
+  lastGeneratedId = Math.max(Date.now(), lastGeneratedId + 1, maxExisting + 1);
+  return lastGeneratedId;
+}
+
+// Corrige ids invalidos (0, vazio, texto) ou repetidos. Devolve true se mudou algo.
+function ensureUniqueIds(items) {
+  const seen = new Set();
+  let changed = false;
+  items.forEach((item) => {
+    const id = Number(item.id);
+    if (!Number.isFinite(id) || id <= 0 || seen.has(id)) {
+      item.id = generateId(items);
+      changed = true;
+    } else if (item.id !== id) {
+      item.id = id;
+      changed = true;
+    }
+    seen.add(item.id);
+  });
+  return changed;
+}
+
+const isPlainObject = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
+
+let candidates = readStorage("candidates", initialCandidates, Array.isArray).filter(isPlainObject);
 const initialEmployees = [{
   id: 1, name: "Exemplo de colaborador", cpf: "", birth: "", email: "", phone: "", marital: "", birthplace: "", education: "",
   role: "Analista de Departamento Pessoal", department: "Recursos Humanos", manager: "Gestor responsável", level: "Pleno",
   admission: "", contract: "CLT", salary: "R$ 0,00", benefits: "", status: "Ativo",
   documents: [], documentLibrary: [], vacationPeriods: [], movements: [], trainings: [], feedbacks: [], medical: []
 }];
-let employees = (JSON.parse(localStorage.getItem("employees")) || initialEmployees)
-  .filter((employee) => employee.name !== "Novo colaborador");
-localStorage.setItem("employees", JSON.stringify(employees));
+let employees = readStorage("employees", initialEmployees, Array.isArray)
+  .filter((employee) => isPlainObject(employee) && employee.name !== "Novo colaborador");
 const initialSettingsLists = {
   departments: ["Recursos Humanos"],
   roles: ["Analista de Departamento Pessoal"],
   managers: ["Gestor responsável"],
   movementTypes: ["Advertência", "Alteração Salarial", "Ocorrências", "Promoção"]
 };
-let settingsLists = JSON.parse(localStorage.getItem("settingsLists")) || initialSettingsLists;
+let settingsLists = readStorage("settingsLists", initialSettingsLists, isPlainObject);
 Object.keys(initialSettingsLists).forEach((key) => {
-  if (!Array.isArray(settingsLists[key])) settingsLists[key] = initialSettingsLists[key];
+  settingsLists[key] = Array.isArray(settingsLists[key])
+    ? settingsLists[key].filter((item) => typeof item === "string")
+    : [...initialSettingsLists[key]];
 });
+ensureUniqueIds(candidates);
+// Versoes antigas gravavam colaborador novo com id 0; o segundo sobrescrevia o primeiro.
+ensureUniqueIds(employees);
 employees.forEach((employee) => {
   if (!employee.level && employee.unit) employee.level = employee.unit;
   if (!Array.isArray(employee.documentLibrary)) employee.documentLibrary = [];
   if (!Array.isArray(employee.vacationPeriods)) employee.vacationPeriods = [];
+  employee.documentLibrary = employee.documentLibrary.filter(isPlainObject);
+  employee.vacationPeriods = employee.vacationPeriods.filter(isPlainObject);
+  ensureUniqueIds(employee.documentLibrary);
+  ensureUniqueIds(employee.vacationPeriods);
 });
+if (!corruptedStorageKeys.has("employees")) writeStorage("employees", employees, { silent: true });
 const $ = (selector) => document.querySelector(selector);
 let addressLookupRequest = 0;
 
@@ -83,7 +169,8 @@ function flagMarkup(code) {
 function setPhoneCountry(inputId, countryCode) {
   const picker = document.querySelector(`[data-phone-country="${inputId}"]`);
   if (!picker) return;
-  const option = picker.querySelector(`[data-country-code="${countryCode}"]`) || picker.querySelector('[data-country-code="BR"]');
+  // O codigo vem do cadastro salvo: escapado, um valor estranho nao quebra o seletor.
+  const option = picker.querySelector(`[data-country-code="${CSS.escape(String(countryCode || ""))}"]`) || picker.querySelector('[data-country-code="BR"]');
   picker.dataset.selectedCountry = option.dataset.countryCode;
   picker.querySelector(".phone-flag").innerHTML = flagMarkup(option.dataset.countryCode);
   picker.querySelector(".phone-country-code").textContent = option.dataset.dialCode;
@@ -360,10 +447,19 @@ function setupContractExpiration() {
 // dossie. Estas aqui sao livres: o usuario cria a lista (Turnos, Centros de
 // custo...) e administra os itens na mesma pagina generica.
 // =============================================================================
-let customLists = JSON.parse(localStorage.getItem("customLists")) || [];
+// Mesma protecao das outras chaves: dado corrompido ou armazenamento bloqueado
+// nao pode derrubar o sistema inteiro na abertura.
+let customLists = readStorage("customLists", [], (valor) => Array.isArray(valor)
+  && valor.every((lista) => lista && typeof lista.nome === "string" && Array.isArray(lista.itens)));
 
-function salvarCustomLists() {
-  localStorage.setItem("customLists", JSON.stringify(customLists));
+// Se o navegador recusar a gravacao, volta ao estado de antes (backup tirado
+// antes da alteracao) e redesenha - sem lista ou item fantasma na tela.
+function salvarCustomLists(backup) {
+  if (writeStorage("customLists", customLists)) return true;
+  customLists = backup;
+  renderCustomListCards();
+  if (customListAtual()) renderCustomListItems();
+  return false;
 }
 
 function customListAtual() {
@@ -414,10 +510,11 @@ function criarCustomList(nome) {
   const jaExiste = customLists.some((lista) => lista.nome.toLocaleLowerCase("pt-BR") === normalizado.toLocaleLowerCase("pt-BR"))
     || ["departamentos", "cargos", "superiores diretos"].includes(normalizado.toLocaleLowerCase("pt-BR"));
   if (jaExiste) { recado.textContent = "J\u00e1 existe uma op\u00e7\u00e3o de cadastro com esse nome."; return null; }
+  const backup = cloneData(customLists);
   const lista = { id: Date.now(), nome: normalizado, itens: [] };
   customLists.push(lista);
   customLists.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
-  salvarCustomLists();
+  if (!salvarCustomLists(backup)) return null;
   renderCustomListCards();
   return lista;
 }
@@ -427,9 +524,10 @@ function addCustomListItem(valor) {
   const normalizado = valor.trim();
   if (!lista || !normalizado) return;
   if (lista.itens.some((item) => item.toLocaleLowerCase("pt-BR") === normalizado.toLocaleLowerCase("pt-BR"))) return;
+  const backup = cloneData(customLists);
   lista.itens.push(normalizado);
   lista.itens.sort((a, b) => a.localeCompare(b, "pt-BR"));
-  salvarCustomLists();
+  if (!salvarCustomLists(backup)) return;
   renderCustomListItems();
   renderCustomListCards();
 }
@@ -472,8 +570,9 @@ function setupCustomLists() {
     if (!lista) return;
     // Apagar a lista leva junto todos os itens dela, entao confirmamos antes.
     if (!window.confirm(`Excluir a op\u00e7\u00e3o "${lista.nome}" e os ${lista.itens.length} item(ns) dela?`)) return;
+    const backup = cloneData(customLists);
     customLists = customLists.filter((item) => item.id !== lista.id);
-    salvarCustomLists();
+    if (!salvarCustomLists(backup)) return;
     renderCustomListCards();
     activateTab("cadastro-configuracoes");
     history.replaceState(null, "", "#cadastro-configuracoes");
@@ -484,8 +583,9 @@ function setupCustomLists() {
     if (!lista) return;
     const remover = event.target.closest("[data-remove-custom]");
     if (remover) {
+      const backup = cloneData(customLists);
       lista.itens = lista.itens.filter((item) => item !== remover.dataset.removeCustom);
-      salvarCustomLists();
+      if (!salvarCustomLists(backup)) return;
       renderCustomListItems();
       renderCustomListCards();
       return;
@@ -499,9 +599,10 @@ function setupCustomLists() {
       if (!normalizado) return;
       const duplicado = lista.itens.some((item) => item !== atual && item.toLocaleLowerCase("pt-BR") === normalizado.toLocaleLowerCase("pt-BR"));
       if (duplicado) return;
+      const backup = cloneData(customLists);
       lista.itens = lista.itens.map((item) => (item === atual ? normalizado : item));
       lista.itens.sort((a, b) => a.localeCompare(b, "pt-BR"));
-      salvarCustomLists();
+      if (!salvarCustomLists(backup)) return;
       renderCustomListItems();
     }
   });
@@ -575,20 +676,31 @@ function refreshSettingsLists() {
   document.querySelectorAll(".combo.open").forEach((combo) => renderComboMenu(combo, combo.querySelector("input").value));
 }
 
+// Grava as listas de cadastro; se falhar, volta ao estado anterior.
+function saveSettingsLists(backup) {
+  if (writeStorage("settingsLists", settingsLists)) return true;
+  settingsLists = backup;
+  refreshSettingsLists();
+  return false;
+}
+
 function addSettingItem(key, value) {
   const normalized = value.trim();
-  if (!normalized) return;
+  if (!normalized) return true;
   if (!settingsLists[key].some((item) => item.toLocaleLowerCase("pt-BR") === normalized.toLocaleLowerCase("pt-BR"))) {
+    const backup = cloneData(settingsLists);
     settingsLists[key].push(normalized);
     settingsLists[key].sort((a, b) => a.localeCompare(b, "pt-BR"));
-    localStorage.setItem("settingsLists", JSON.stringify(settingsLists));
+    if (!saveSettingsLists(backup)) return false;
     refreshSettingsLists();
   }
+  return true;
 }
 
 function removeSettingItem(key, value) {
+  const backup = cloneData(settingsLists);
   settingsLists[key] = settingsLists[key].filter((item) => item !== value);
-  localStorage.setItem("settingsLists", JSON.stringify(settingsLists));
+  if (!saveSettingsLists(backup)) return;
   refreshSettingsLists();
 }
 
@@ -599,9 +711,10 @@ function editSettingItem(key, previousValue, nextValue) {
   if (duplicate) return;
   const index = settingsLists[key].indexOf(previousValue);
   if (index === -1) return;
+  const backup = cloneData(settingsLists);
   settingsLists[key][index] = normalized;
   settingsLists[key].sort((a, b) => a.localeCompare(b, "pt-BR"));
-  localStorage.setItem("settingsLists", JSON.stringify(settingsLists));
+  if (!saveSettingsLists(backup)) return;
   refreshSettingsLists();
 }
 
@@ -687,19 +800,68 @@ async function lookupAddressByCep() {
   }
 }
 
+// Aba so e valida se existir um .tab-panel com esse id; qualquer outra coisa
+// (hash digitado errado, link antigo) cai no inicio em vez de esconder tudo.
+let activeTabName = "";
+
+function resolveTab(tabName) {
+  const panel = tabName ? document.getElementById(tabName) : null;
+  return panel && panel.classList.contains("tab-panel") ? tabName : "dashboard";
+}
+
+function tabFromHash() {
+  const raw = location.hash.slice(1);
+  try {
+    return decodeURIComponent(raw);
+  } catch (error) {
+    return raw;
+  }
+}
+
+// Cada troca de aba vira uma entrada no historico, para o voltar/avancar funcionar.
+function setTabHash(tabName) {
+  if (location.hash === `#${tabName}`) return;
+  history.pushState(null, "", `#${tabName}`);
+}
+
+function syncTabWithHash() {
+  const requested = tabFromHash();
+  const tab = resolveTab(requested);
+  if (requested && requested !== tab) history.replaceState(null, "", `#${tab}`);
+  if (tab !== activeTabName) activateTab(tab);
+}
+
+// Grupo recolhido no menu esconderia a aba ativa: abre o grupo dela.
+function revealActiveNavItem() {
+  document.querySelectorAll(".nav-item.active").forEach((item) => {
+    const group = item.closest(".nav-group.collapsed");
+    if (!group) return;
+    group.classList.remove("collapsed");
+    const toggle = group.querySelector(".nav-group-toggle");
+    if (!toggle) return;
+    toggle.setAttribute("aria-expanded", "true");
+    const chevron = toggle.querySelector(".nav-chevron");
+    if (chevron) chevron.textContent = "⌃";
+  });
+}
+
 function activateTab(tabName, subtabName = "") {
+  tabName = resolveTab(tabName);
+  activeTabName = tabName;
   const showDocuments = tabName === "dossie";
   const showSettingsEntry = ["novo-departamento", "novo-cargo", "novo-superior", "novo-tipo-movimentacao", "lista-personalizada"].includes(tabName);
   document.body.classList.toggle("dossier-view", tabName === "dossie");
   document.body.classList.toggle("employee-list-view", tabName === "colaboradores");
   document.body.classList.toggle("settings-entry-view", showSettingsEntry);
   document.querySelectorAll(".nav-item[data-tab]").forEach((item) => item.classList.toggle("active", item.dataset.tab === tabName && (item.dataset.subtab || "") === subtabName));
+  revealActiveNavItem();
   document.querySelectorAll(".tab-panel").forEach((panel) => panel.classList.toggle("hidden", panel.id !== tabName));
   $("#documentos").classList.toggle("hidden", !showDocuments);
   if (tabName === "dossie" || tabName === "colaboradores") window.scrollTo(0, 0);
   // A home so era desenhada no carregamento da pagina. Quem editava um
   // colaborador e voltava pra ca via o lembrete de experiencias desatualizado.
   if (tabName === "dashboard") renderProbationReminders();
+  if (tabName === "acompanhamento") renderFollowup();
 }
 
 function vacationRecords() {
@@ -722,12 +884,12 @@ function renderVacations() {
   const query = $("#vacation-search").value.toLowerCase().trim();
   const status = $("#vacation-status-filter").value;
   const month = $("#vacation-month-filter").value;
-  const records = vacationRecords().filter((record) => (!query || record.employeeName.toLowerCase().includes(query)) && (!status || record.status === status));
+  const records = vacationRecords().filter((record) => (!query || String(record.employeeName || "").toLowerCase().includes(query)) && (!status || record.status === status));
   const alerts = records.filter((record) => {
     const days = daysUntil(record.concessionDeadline);
     return record.status !== "Concluída" && days <= 60;
-  }).sort((a, b) => a.concessionDeadline.localeCompare(b.concessionDeadline));
-  const scheduled = records.filter((record) => !month || record.vacationStart.startsWith(month)).sort((a, b) => a.vacationStart.localeCompare(b.vacationStart));
+  }).sort((a, b) => String(a.concessionDeadline || "").localeCompare(String(b.concessionDeadline || "")));
+  const scheduled = records.filter((record) => !month || String(record.vacationStart || "").startsWith(month)).sort((a, b) => String(a.vacationStart || "").localeCompare(String(b.vacationStart || "")));
   $("#vacation-total").textContent = records.length;
   $("#vacation-alert-count").textContent = alerts.length;
   $("#vacation-scheduled-count").textContent = scheduled.length;
@@ -738,7 +900,7 @@ function renderVacations() {
   }).join("") : emptyState("Nenhum período próximo do vencimento.", null);
   $("#vacation-calendar-title").textContent = month ? `Férias em ${formatMonth(month)}` : "Férias programadas";
   $("#vacation-calendar").innerHTML = scheduled.length ? scheduled.map((record) => `<div class="calendar-event"><span class="calendar-day">${formatDate(record.vacationStart, true)}</span><div><strong>${escapeHtml(record.employeeName)}</strong><span>${formatDate(record.vacationStart)} a ${formatDate(record.vacationEnd)} · ${escapeHtml(record.status)}</span></div></div>`).join("") : emptyState("Nenhuma férias programada para este período.", null);
-  $("#vacation-list").innerHTML = records.length ? records.map((record) => `<div class="record-row"><div><strong>${escapeHtml(record.employeeName)} · ${escapeHtml(record.status)}</strong><span>Aquisitivo: ${formatDate(record.acquisitionStart)} a ${formatDate(record.acquisitionEnd)} · Concessivo até ${formatDate(record.concessionDeadline)} · Férias: ${formatDate(record.vacationStart)} a ${formatDate(record.vacationEnd)}</span></div><button type="button" class="remove-record" data-remove-vacation="${record.employeeId}:${record.id}">Remover</button></div>`).join("") : emptyState("Nenhum período de férias cadastrado.", "dormindo");
+  $("#vacation-list").innerHTML = records.length ? records.map((record) => `<div class="record-row"><div><strong>${escapeHtml(record.employeeName)} · ${escapeHtml(record.status)}</strong><span>Aquisitivo: ${formatDate(record.acquisitionStart)} a ${formatDate(record.acquisitionEnd)} · Concessivo até ${formatDate(record.concessionDeadline)} · Férias: ${formatDate(record.vacationStart)} a ${formatDate(record.vacationEnd)}</span></div><button type="button" class="remove-record" data-remove-vacation="${escapeHtml(record.employeeId)}:${escapeHtml(record.id)}">Remover</button></div>`).join("") : emptyState("Nenhum período de férias cadastrado.", "dormindo");
 }
 
 function formatDate(value, short = false) {
@@ -751,14 +913,14 @@ function formatMonth(value) {
 }
 
 function refreshVacationEmployees() {
-  $("#vacation-employee").innerHTML = employees.map((employee) => `<option value="${employee.id}">${escapeHtml(employee.name)}</option>`).join("");
+  $("#vacation-employee").innerHTML = employees.map((employee) => `<option value="${escapeHtml(employee.id)}">${escapeHtml(employee.name)}</option>`).join("");
 }
 
 document.querySelectorAll(".nav-item[data-tab]").forEach((item) => {
   item.addEventListener("click", (event) => {
     event.preventDefault();
     activateTab(item.dataset.tab, item.dataset.subtab || "");
-    history.replaceState(null, "", `#${item.dataset.subtab ? "dossie" : item.dataset.tab}`);
+    setTabHash(item.dataset.subtab ? "dossie" : item.dataset.tab);
     if (item.dataset.subtab) $("#documentos").scrollIntoView({ behavior: "smooth", block: "start" });
   });
 });
@@ -782,15 +944,19 @@ function uniqueValues(field) {
 }
 
 function statusClass(status) {
-  if (status === "Aguardando") return "waiting";
-  if (status === "Contratado" || status.includes("Aprovado")) return "approved";
-  if (status.includes("Reprovado")) return "rejected";
-  return "hired";
+  const value = String(status ?? "");
+  if (value === "Contratado") return "hired";
+  if (value.includes("Aprovado")) return "approved";
+  if (value.includes("Reprovado")) return "rejected";
+  return "waiting";
 }
 
 function setupFilters() {
+  // Recriar as opcoes nao pode apagar o filtro que o usuario tinha escolhido.
   const addOptions = (element, values, firstOption) => {
-    element.innerHTML = `<option value="">${firstOption}</option>` + values.map((value) => `<option>${value}</option>`).join("");
+    const selected = element.value;
+    element.innerHTML = `<option value="">${firstOption}</option>` + values.map((value) => `<option>${escapeHtml(value)}</option>`).join("");
+    if (selected && values.map(String).includes(selected)) element.value = selected;
   };
   addOptions($("#status-filter"), statuses, "Todos os status");
   addOptions($("#job-filter"), uniqueValues("job"), "Todas as vagas");
@@ -800,14 +966,14 @@ function setupFilters() {
   addOptions($("#dashboard-source-filter"), sources, "Todas as origens");
   addOptions($("#status"), statuses, "Selecione o status");
   addOptions($("#source"), sources, "Selecione a origem");
-  $("#jobs").innerHTML = uniqueValues("job").map((job) => `<option value="${job}">`).join("");
+  $("#jobs").innerHTML = uniqueValues("job").map((job) => `<option value="${escapeHtml(job)}">`).join("");
 }
 
 function renderDashboard() {
   const dashboardCandidates = getFilteredDashboardCandidates();
   const total = dashboardCandidates.length;
   const waiting = dashboardCandidates.filter((candidate) => candidate.status === "Aguardando").length;
-  const approved = dashboardCandidates.filter((candidate) => candidate.status.includes("Aprovado")).length;
+  const approved = dashboardCandidates.filter((candidate) => String(candidate.status ?? "").includes("Aprovado")).length;
   const hired = dashboardCandidates.filter((candidate) => candidate.status === "Contratado").length;
   $("#metrics").innerHTML = [
     ["Total de currículos", total, "Base cadastrada"],
@@ -829,7 +995,7 @@ function renderDashboard() {
   const documentsPending = employees.filter((employee) => !(employee.documentLibrary || []).length).length;
   $("#home-pending-list").innerHTML = [
     [`${waiting} currículo(s)`, "aguardando triagem", "candidatos"],
-    [`${activeEmployees} colaborador(es)`, "com status ativo", "dossie"],
+    [`${activeEmployees} colaborador(es)`, "com status ativo", "colaboradores"],
     [`${documentsPending} colaborador(es)`, "sem documentos na biblioteca", "documentos"]
   ].map(([value, label, tab]) => `<button type="button" class="pending-item" data-home-tab="${tab}"><strong>${value}</strong><span>${label}</span></button>`).join("");
   renderProbationReminders();
@@ -864,13 +1030,13 @@ function renderTable() {
   const filtered = getFilteredCandidates();
   $("#candidate-count").textContent = `${filtered.length} de ${candidates.length} candidatos`;
   $("#candidate-table").innerHTML = filtered.map((candidate) => `<tr>
-    <td><div class="candidate-name">${candidate.name}</div><div class="candidate-phone">${candidate.phone || "Telefone não informado"}</div></td>
-    <td>${candidate.job}</td>
-    <td>${candidate.source}</td>
-    <td>${candidate.owner || "A definir"}</td>
-    <td><span class="badge ${statusClass(candidate.status)}">${candidate.status}</span></td>
-    <td>${candidate.lastContact || "-"}</td>
-    <td><button class="row-action" data-edit="${candidate.id}">Editar</button></td>
+    <td><div class="candidate-name">${escapeHtml(candidate.name)}</div><div class="candidate-phone">${escapeHtml(candidate.phone || "Telefone não informado")}</div></td>
+    <td>${escapeHtml(candidate.job)}</td>
+    <td>${escapeHtml(candidate.source)}</td>
+    <td>${escapeHtml(candidate.owner || "A definir")}</td>
+    <td><span class="badge ${statusClass(candidate.status)}">${escapeHtml(candidate.status)}</span></td>
+    <td>${escapeHtml(candidate.lastContact || "-")}</td>
+    <td><button class="row-action" data-edit="${escapeHtml(candidate.id)}">Editar</button></td>
   </tr>`).join("");
   $("#empty-state").classList.toggle("hidden", filtered.length > 0);
 }
@@ -899,12 +1065,15 @@ function probationSchedule(employee) {
 
 function probationDeadlines() {
   return employees.filter((employee) => employee.status !== "Desligado").flatMap((employee) => {
+    // Quem ja foi efetivado ou teve o contrato encerrado sai do lembrete, e um
+    // periodo com decisao registrada (ex.: 1o prorrogado) deixa de ser avisado.
+    if (probationFinalDecision(employee)) return [];
     const { venc1, venc2 } = probationSchedule(employee);
     return [
-      { rotulo: "1\u00ba per\u00edodo", data: venc1 },
-      { rotulo: "2\u00ba per\u00edodo", data: venc2 }
-    ].map(({ rotulo, data }) => {
-      if (!data) return null;
+      { periodo: "1", rotulo: "1\u00ba per\u00edodo", data: venc1 },
+      { periodo: "2", rotulo: "2\u00ba per\u00edodo", data: venc2 }
+    ].map(({ periodo, rotulo, data }) => {
+      if (!data || probationDecisionFor(employee, periodo)) return null;
       const dias = daysUntil(data);
       if (dias > PROBATION_ALERT_AHEAD || dias < -PROBATION_ALERT_BEHIND) return null;
       return {
@@ -934,10 +1103,322 @@ function renderProbationReminders() {
   }).join("") : emptyState("Nenhuma experi\u00eancia vencendo nos pr\u00f3ximos 30 dias.", null);
 }
 
+// =============================================================================
+// FEEDBACK E EXPERIENCIA (aba acompanhamento)
+// Os feedbacks moram em employee.feedbacks, o MESMO historico que o dossie
+// mostra em "Feedbacks, advertencias e avaliacoes" - registrar aqui aparece la
+// e vice-versa. As decisoes sobre a experiencia ficam em
+// employee.probationDecisions: [{ id, periodo, resultado, data, responsavel,
+// observacoes }], uma por periodo.
+// =============================================================================
+const FEEDBACK_TYPES = ["Feedback positivo", "Feedback construtivo", "Avaliação de desempenho", "Avaliação de experiência", "Advertência", "Comunicado"];
+const PROBATION_SOON_DAYS = 15;
+const FINAL_PROBATION_RESULTS = ["Efetivado", "Encerrado"];
+
+function todayIsoLocal() {
+  const agora = new Date();
+  return new Date(Date.UTC(agora.getFullYear(), agora.getMonth(), agora.getDate())).toISOString().slice(0, 10);
+}
+
+function probationDecisionFor(employee, periodo) {
+  return (employee.probationDecisions || []).find((decisao) => decisao.periodo === periodo) || null;
+}
+
+function probationFinalDecision(employee) {
+  return (employee.probationDecisions || []).find((decisao) => FINAL_PROBATION_RESULTS.includes(decisao.resultado)) || null;
+}
+
+function deadlineLabel(dias) {
+  if (dias < 0) return `Venceu há ${Math.abs(dias)} dia(s)`;
+  if (dias === 0) return "Vence hoje";
+  return `Vence em ${dias} dia(s)`;
+}
+
+// Situacao do contrato de experiencia de um colaborador, ou null se ele nao
+// tem periodo calculavel. "pendente" e o primeiro periodo ainda sem decisao.
+function probationStatus(employee) {
+  const { venc1, venc2 } = probationSchedule(employee);
+  const periodos = [
+    { periodo: "1", rotulo: "1º período", data: venc1 },
+    { periodo: "2", rotulo: "2º período", data: venc2 }
+  ].filter((item) => item.data);
+  if (!periodos.length) return null;
+
+  const final = probationFinalDecision(employee);
+  if (final) return { employee, periodos, final, pendente: null, situacao: "concluida" };
+
+  const pendente = periodos.find((item) => !probationDecisionFor(employee, item.periodo));
+  if (!pendente) {
+    // Tudo decidido mas sem efetivar/encerrar: foi prorrogado e o 2o periodo
+    // ainda nao foi preenchido no cadastro.
+    return { employee, periodos, final: null, pendente: null, situacao: "incompleta" };
+  }
+  const dias = daysUntil(pendente.data);
+  const situacao = dias < 0 ? "vencida" : dias <= PROBATION_SOON_DAYS ? "vencendo" : "andamento";
+  return { employee, periodos, final: null, pendente: { ...pendente, dias }, situacao };
+}
+
+const PROBATION_ORDER = { vencida: 0, vencendo: 1, incompleta: 2, andamento: 3, concluida: 4 };
+
+function renderProbationControl(query) {
+  const filtro = $("#followup-probation-filter").value;
+  const todos = employees.filter((employee) => employee.status !== "Desligado").map(probationStatus).filter(Boolean);
+  $("#followup-probation-count").textContent = todos.filter((item) => item.situacao !== "concluida").length;
+  $("#followup-overdue-count").textContent = todos.filter((item) => item.situacao === "vencida").length;
+
+  const visiveis = todos
+    .filter((item) => !query || String(item.employee.name || "").toLowerCase().includes(query))
+    .filter((item) => !filtro || item.situacao === filtro || (filtro === "andamento" && item.situacao === "incompleta"))
+    .sort((a, b) => PROBATION_ORDER[a.situacao] - PROBATION_ORDER[b.situacao]
+      || String(a.pendente?.data || "").localeCompare(String(b.pendente?.data || "")));
+  $("#followup-probation-total").textContent = `${visiveis.length} de ${todos.length} contrato(s)`;
+
+  if (!todos.length) {
+    $("#probation-control-list").innerHTML = emptyState("Nenhum colaborador com contrato de experiência. Preencha o início e a duração dos períodos no cadastro do colaborador.", "relogio");
+    return;
+  }
+  if (!visiveis.length) {
+    $("#probation-control-list").innerHTML = emptyState("Nenhum contrato de experiência com esses filtros.", null);
+    return;
+  }
+
+  $("#probation-control-list").innerHTML = visiveis.map(({ employee, periodos, final, pendente, situacao }) => {
+    const linhasPeriodo = periodos.map((item) => {
+      const decisao = probationDecisionFor(employee, item.periodo);
+      const ehPendente = !final && pendente && pendente.periodo === item.periodo;
+      const detalhe = decisao
+        ? `${escapeHtml(decisao.resultado)} em ${formatDate(decisao.data)}`
+        : final ? "Sem decisão" : ehPendente ? "Aguardando decisão" : deadlineLabel(daysUntil(item.data));
+      const classe = decisao || final ? "decidido" : pendente && pendente.periodo === item.periodo ? "pendente" : "";
+      return `<span class="probation-period ${classe}">${item.rotulo} até ${formatDate(item.data)} · ${detalhe}</span>`;
+    }).join("");
+
+    let lado;
+    if (situacao === "concluida") {
+      const tom = final.resultado === "Efetivado" ? "approved" : "rejected";
+      lado = `<span class="badge ${tom}">${escapeHtml(final.resultado)}</span>`;
+    } else if (situacao === "incompleta") {
+      lado = `<b class="probation-deadline">Preencha o 2º período no cadastro</b><button type="button" class="button secondary small" data-probation-decide="${employee.id}">Registrar decisão</button>`;
+    } else {
+      lado = `<b class="probation-deadline">${deadlineLabel(pendente.dias)}</b><button type="button" class="button secondary small" data-probation-decide="${employee.id}">Registrar decisão</button>`;
+    }
+
+    return `<div class="record-row probation-row ${situacao}">
+      <div class="probation-row-main"><button type="button" class="link-button" data-open-followup-employee="${employee.id}"><strong>${escapeHtml(employee.name || "Sem nome")}</strong></button><span>${escapeHtml(employee.role || "Cargo não informado")}</span></div>
+      <div class="probation-periods">${linhasPeriodo}</div>
+      <div class="probation-row-side">${lado}</div>
+    </div>`;
+  }).join("");
+}
+
+function feedbackTone(type) {
+  const valor = String(type || "").toLowerCase();
+  if (valor.includes("positivo")) return "approved";
+  if (valor.includes("advert")) return "rejected";
+  if (valor.includes("avalia") || valor.includes("construtivo")) return "hired";
+  return "waiting";
+}
+
+function feedbackRecords() {
+  return employees.flatMap((employee) => (employee.feedbacks || []).map((record, index) => ({
+    ...record, index, employeeId: employee.id, employeeName: employee.name || "Sem nome"
+  })));
+}
+
+function refreshFeedbackTypeFilter() {
+  const select = $("#followup-feedback-filter");
+  const atual = select.value;
+  const tipos = [...new Set([...FEEDBACK_TYPES, ...feedbackRecords().map((record) => record.type).filter(Boolean)])];
+  select.innerHTML = `<option value="">Todos os tipos</option>${tipos.map((tipo) => `<option>${escapeHtml(tipo)}</option>`).join("")}`;
+  select.value = tipos.includes(atual) ? atual : "";
+}
+
+function renderFeedbackHistory(query) {
+  const tipo = $("#followup-feedback-filter").value;
+  const todos = feedbackRecords();
+  $("#followup-feedback-count").textContent = todos.filter((record) => {
+    const dias = daysUntil(record.date);
+    return dias <= 0 && dias >= -30;
+  }).length;
+
+  const visiveis = todos
+    .filter((record) => !tipo || record.type === tipo)
+    .filter((record) => !query || [record.employeeName, record.type, record.description, record.author, record.actions]
+      .some((valor) => String(valor || "").toLowerCase().includes(query)))
+    .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+  $("#followup-feedback-total").textContent = `${visiveis.length} registro(s)`;
+
+  if (!visiveis.length) {
+    $("#feedback-history").innerHTML = emptyState(todos.length
+      ? "Nenhum feedback com esses filtros."
+      : "Nenhum feedback registrado ainda. Use Registrar feedback para começar o histórico.", null);
+    return;
+  }
+  $("#feedback-history").innerHTML = visiveis.map((record) => `<article class="feedback-entry tone-${feedbackTone(record.type)}">
+      <div class="feedback-entry-head">
+        <span class="badge ${feedbackTone(record.type)}">${escapeHtml(record.type || "Registro")}</span>
+        <button type="button" class="link-button" data-open-followup-employee="${record.employeeId}"><strong>${escapeHtml(record.employeeName)}</strong></button>
+        <span class="muted">${formatDate(record.date)}${record.author ? ` · por ${escapeHtml(record.author)}` : ""}</span>
+        <button type="button" class="remove-record" data-remove-feedback="${record.employeeId}:${record.index}">Remover</button>
+      </div>
+      ${record.description ? `<p>${escapeHtml(record.description)}</p>` : ""}
+      ${record.actions ? `<p class="feedback-entry-actions"><b>Combinados:</b> ${escapeHtml(record.actions)}</p>` : ""}
+    </article>`).join("");
+}
+
+function renderFollowup() {
+  const query = $("#followup-search").value.toLowerCase().trim();
+  refreshFeedbackTypeFilter();
+  renderProbationControl(query);
+  renderFeedbackHistory(query);
+}
+
+// Mantem o dossie aberto em sincronia quando o registro muda por esta aba.
+function refreshOpenDossier(employee) {
+  if (Number($("#employee-id").value) === employee.id) renderEmployeeRecords(employee);
+}
+
+function openFeedbackEntry(employeeId) {
+  $("#feedback-entry-form").reset();
+  $("#feedback-entry-employee").innerHTML = employees
+    .filter((employee) => employee.status !== "Desligado")
+    .map((employee) => `<option value="${employee.id}">${escapeHtml(employee.name || "Sem nome")}</option>`).join("");
+  if (employeeId) $("#feedback-entry-employee").value = String(employeeId);
+  $("#feedback-entry-date").value = todayIsoLocal();
+  $("#feedback-entry-dialog").showModal();
+}
+
+function openProbationDecision(employee) {
+  const status = probationStatus(employee);
+  if (!status) return;
+  const alvo = status.pendente || status.periodos[status.periodos.length - 1];
+  const dialog = $("#probation-decision-dialog");
+  dialog.dataset.employeeId = employee.id;
+  dialog.dataset.periodo = alvo.periodo;
+  $("#probation-decision-form").reset();
+  $("#probation-decision-title").textContent = `Decisão do ${alvo.rotulo}`;
+  $("#probation-decision-context").textContent = `${employee.name || "Sem nome"} · ${alvo.rotulo} até ${formatDate(alvo.data)} · ${deadlineLabel(daysUntil(alvo.data))}`;
+  // Prorrogar so existe a partir do 1o periodo; no 2o a experiencia termina.
+  const opcoes = alvo.periodo === "1" ? ["Prorrogado", "Efetivado", "Encerrado"] : ["Efetivado", "Encerrado"];
+  $("#probation-decision-result").innerHTML = `<option value="">Selecione</option>${opcoes.map((opcao) => `<option>${opcao}</option>`).join("")}`;
+  $("#probation-decision-date").value = todayIsoLocal();
+  $("#probation-decision-hint").textContent = "";
+  dialog.showModal();
+}
+
+$("#add-feedback-entry").addEventListener("click", () => openFeedbackEntry());
+["#close-feedback-entry", "#cancel-feedback-entry"].forEach((selector) => $(selector).addEventListener("click", () => $("#feedback-entry-dialog").close()));
+["#close-probation-decision", "#cancel-probation-decision"].forEach((selector) => $(selector).addEventListener("click", () => $("#probation-decision-dialog").close()));
+["#followup-search", "#followup-probation-filter", "#followup-feedback-filter"].forEach((selector) => $(selector).addEventListener("input", renderFollowup));
+
+$("#feedback-entry-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const employee = employees.find((item) => item.id === Number($("#feedback-entry-employee").value));
+  if (!employee) return;
+  const backup = cloneData(employees);
+  if (!Array.isArray(employee.feedbacks)) employee.feedbacks = [];
+  employee.feedbacks.push({
+    id: generateId(employee.feedbacks),
+    type: $("#feedback-entry-type").value,
+    date: $("#feedback-entry-date").value,
+    author: $("#feedback-entry-author").value.trim(),
+    description: $("#feedback-entry-description").value.trim(),
+    actions: $("#feedback-entry-actions").value.trim()
+  });
+  if (!saveEmployees(backup)) return;
+  refreshOpenDossier(employee);
+  renderFollowup();
+  $("#feedback-entry-dialog").close();
+});
+
+$("#probation-decision-result").addEventListener("change", () => {
+  const employee = employees.find((item) => item.id === Number($("#probation-decision-dialog").dataset.employeeId));
+  const semSegundo = employee && !probationSchedule(employee).venc2;
+  $("#probation-decision-hint").textContent = $("#probation-decision-result").value === "Prorrogado" && semSegundo
+    ? "Depois de salvar, preencha a duração do 2º período no cadastro do colaborador para acompanhar o novo vencimento."
+    : "";
+});
+
+$("#probation-decision-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const dialog = $("#probation-decision-dialog");
+  const employee = employees.find((item) => item.id === Number(dialog.dataset.employeeId));
+  if (!employee) return;
+  const periodo = dialog.dataset.periodo;
+  const backup = cloneData(employees);
+  // Uma decisao por periodo: registrar de novo substitui a anterior.
+  employee.probationDecisions = (employee.probationDecisions || []).filter((decisao) => decisao.periodo !== periodo);
+  employee.probationDecisions.push({
+    id: generateId(employee.probationDecisions),
+    periodo,
+    resultado: $("#probation-decision-result").value,
+    data: $("#probation-decision-date").value,
+    responsavel: $("#probation-decision-author").value.trim(),
+    observacoes: $("#probation-decision-notes").value.trim()
+  });
+  if (!saveEmployees(backup)) return;
+  renderFollowup();
+  renderProbationReminders();
+  dialog.close();
+});
+
+$("#acompanhamento").addEventListener("click", (event) => {
+  const abrir = event.target.closest("[data-open-followup-employee]");
+  if (abrir) {
+    const employee = employees.find((item) => item.id === Number(abrir.dataset.openFollowupEmployee));
+    if (!employee) return;
+    fillEmployeeForm(employee);
+    activateTab("dossie");
+    setTabHash("dossie");
+    return;
+  }
+  const decidir = event.target.closest("[data-probation-decide]");
+  if (decidir) {
+    const employee = employees.find((item) => item.id === Number(decidir.dataset.probationDecide));
+    if (employee) openProbationDecision(employee);
+    return;
+  }
+  const remover = event.target.closest("[data-remove-feedback]");
+  if (remover) {
+    const [employeeId, index] = remover.dataset.removeFeedback.split(":").map(Number);
+    const employee = employees.find((item) => item.id === employeeId);
+    if (!employee || !employee.feedbacks?.[index]) return;
+    if (!confirm("Remover este feedback do histórico? Ele também sai do cadastro do colaborador.")) return;
+    const backup = cloneData(employees);
+    employee.feedbacks.splice(index, 1);
+    if (!saveEmployees(backup)) return;
+    refreshOpenDossier(employee);
+    renderFollowup();
+  }
+});
+
 function render() {
   renderDashboard();
   renderTable();
-  localStorage.setItem("candidates", JSON.stringify(candidates));
+}
+
+// Grava os colaboradores; se falhar, devolve o estado de antes e redesenha,
+// para nao ficar na tela um registro que some ao recarregar.
+function saveEmployees(backup) {
+  if (writeStorage("employees", employees)) return true;
+  employees = backup;
+  refreshEmployeeViews();
+  return false;
+}
+
+// Redesenha tudo que depende de employees sem mexer no que esta digitado no dossie.
+function refreshEmployeeViews() {
+  refreshEmployeePicker();
+  refreshDocumentsEmployeePicker();
+  setupEmployeeFilters();
+  setupEmployeeListFilters();
+  renderEmployeeList();
+  refreshVacationEmployees();
+  renderVacations();
+  renderFollowup();
+  render();
+  const openEmployee = currentEmployee();
+  renderEmployeeRecords(openEmployee || { documents: [], movements: [], trainings: [], feedbacks: [], medical: [] });
 }
 
 function openCandidate(candidate) {
@@ -953,14 +1434,22 @@ function openCandidate(candidate) {
   $("#candidate-dialog").showModal();
 }
 
+if ($("#new-candidate")) $("#new-candidate").addEventListener("click", () => openCandidate());
 if ($("#open-form")) $("#open-form").addEventListener("click", () => openCandidate());
 $("#close-form").addEventListener("click", () => $("#candidate-dialog").close());
 $("#cancel-form").addEventListener("click", () => $("#candidate-dialog").close());
 $("#candidate-form").addEventListener("submit", (event) => {
   event.preventDefault();
   const id = Number($("#candidate-id").value);
-  const candidate = { id: id || Date.now(), name: $("#name").value.trim(), phone: $("#phone").value.trim(), job: $("#job").value.trim(), source: $("#source").value, owner: $("#owner").value.trim() || "A definir", status: $("#status").value, experience: $("#experience").value, salary: $("#salary").value.trim() || "-", lastContact: new Date().toLocaleDateString("pt-BR"), notes: $("#notes").value.trim() };
+  const candidate = { id: id || generateId(candidates), name: $("#name").value.trim(), phone: $("#phone").value.trim(), job: $("#job").value.trim(), source: $("#source").value, owner: $("#owner").value.trim() || "A definir", status: $("#status").value, experience: $("#experience").value, salary: $("#salary").value.trim() || "-", lastContact: new Date().toLocaleDateString("pt-BR"), notes: $("#notes").value.trim() };
+  const previousCandidates = candidates;
   candidates = id ? candidates.map((item) => item.id === id ? candidate : item) : [candidate, ...candidates];
+  if (!writeStorage("candidates", candidates)) {
+    // Dialogo continua aberto para o usuario nao perder o que digitou.
+    candidates = previousCandidates;
+    render();
+    return;
+  }
   setupFilters();
   render();
   $("#candidate-dialog").close();
@@ -973,39 +1462,83 @@ $("#candidate-table").addEventListener("click", (event) => {
 });
 $("#show-curriculum-dashboard").addEventListener("click", () => {
   activateTab("dashboard");
-  history.replaceState(null, "", "#dashboard");
+  setTabHash("dashboard");
 });
-document.querySelectorAll("[data-home-tab]").forEach((button) => {
-  button.addEventListener("click", () => {
-    const tab = button.dataset.homeTab;
-    activateTab(tab === "documentos" ? "dossie" : tab);
-    history.replaceState(null, "", `#${tab === "documentos" ? "dossie" : tab}`);
-    if (tab === "documentos") $("#documentos").scrollIntoView({ behavior: "smooth", block: "start" });
-  });
+// Delegado: os botoes de "Pendencias da operacao" sao recriados a cada
+// renderDashboard, entao um listener ligado uma unica vez nunca os alcancava.
+document.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-home-tab]");
+  if (!button) return;
+  const tab = button.dataset.homeTab;
+  // "Novo colaborador" abria o formulario de quem estivesse carregado e salvar sobrescrevia essa pessoa.
+  if (tab === "dossie" && button.classList.contains("quick-action")) resetEmployeeForm();
+  activateTab(tab === "documentos" ? "dossie" : tab);
+  setTabHash(tab === "documentos" ? "dossie" : tab);
+  if (tab === "documentos") $("#documentos").scrollIntoView({ behavior: "smooth", block: "start" });
 });
+["#new-job", "#new-interview"].forEach((selector) => {
+  const button = $(selector);
+  if (!button) return;
+  const feature = selector === "#new-job" ? "O cadastro de vagas" : "O agendamento de entrevistas";
+  button.addEventListener("click", () => alert(`${feature} ainda não está disponível nesta versão do sistema.`));
+});
+
+// Planilhas executam celulas que comecam com = + - @ como formula.
+function csvCell(value) {
+  let text = String(value ?? "");
+  if (/^[=+\-@\t\r]/.test(text) && text !== "-") text = `'${text}`;
+  return `"${text.replaceAll('"', '""')}"`;
+}
+
 $("#export-report").addEventListener("click", () => {
+  const filtered = getFilteredCandidates();
+  if (!filtered.length) {
+    alert("Nenhum candidato encontrado com os filtros atuais de Gestão de currículos. Ajuste os filtros e tente novamente.");
+    return;
+  }
   const headers = ["Nome", "Telefone", "Vaga", "Origem", "Responsável", "Status", "Último contato"];
-  const rows = candidates.map((candidate) => [candidate.name, candidate.phone, candidate.job, candidate.source, candidate.owner, candidate.status, candidate.lastContact]);
-  const csv = [headers, ...rows].map((row) => row.map((value) => `"${String(value || "").replaceAll('"', '""')}"`).join(";")).join("\n");
+  const rows = filtered.map((candidate) => [candidate.name, candidate.phone, candidate.job, candidate.source, candidate.owner, candidate.status, candidate.lastContact]);
+  const csv = [headers, ...rows].map((row) => row.map(csvCell).join(";")).join("\n");
   const link = document.createElement("a");
   link.href = URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" }));
   link.download = "relatorio-candidatos.csv";
   link.click();
-  URL.revokeObjectURL(link.href);
+  // Revogar na mesma hora cancela o download em alguns navegadores.
+  window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 });
 $("#clear-data").addEventListener("click", () => {
-  candidates = [...initialCandidates];
+  const confirmed = confirm("Restaurar os dados de demonstração?\n\nIsso APAGA todos os candidatos e colaboradores salvos neste navegador, incluindo documentos, férias, feedbacks, decisões de experiência, movimentações, treinamentos e atestados, e coloca os dados de exemplo no lugar.\n\nAs listas de departamentos, cargos e superiores são mantidas. Esta ação não pode ser desfeita.");
+  if (!confirmed) return;
+  const previousCandidates = candidates;
+  const previousEmployees = employees;
+  candidates = cloneData(initialCandidates);
+  employees = cloneData(initialEmployees);
+  if (!writeStorage("candidates", candidates) || !writeStorage("employees", employees)) {
+    candidates = previousCandidates;
+    employees = previousEmployees;
+    // Se so a primeira gravacao passou, devolve o que estava salvo.
+    writeStorage("candidates", candidates, { silent: true });
+    writeStorage("employees", employees, { silent: true });
+    setupFilters();
+    refreshEmployeeViews();
+    return;
+  }
   setupFilters();
-  render();
+  fillEmployeeForm(employees[0]);
+  refreshEmployeeViews();
   activateTab("dashboard");
+  setTabHash("dashboard");
 });
 
 function currentEmployee() {
-  return employees.find((employee) => employee.id === Number($("#employee-id").value)) || employees[0];
+  // Sem fallback para employees[0]: formulario de colaborador novo (sem id)
+  // nao pode gravar registros no cadastro de outra pessoa.
+  return employees.find((employee) => employee.id === Number($("#employee-id").value)) || null;
 }
 
 function escapeHtml(value) {
-  return String(value || "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[character]));
+  // So null/undefined viram texto vazio; 0 e false precisam aparecer.
+  return String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[character]));
 }
 
 function formatFileSize(bytes) {
@@ -1019,9 +1552,19 @@ function documentDate(date) {
   return new Date(date).toLocaleDateString("pt-BR");
 }
 
+// Colaborador escolhido na biblioteca de documentos. Sem fallback para o
+// primeiro da lista: com a busca sem resultado, o upload ia parar no cadastro errado.
+function documentsEmployee() {
+  return employees.find((item) => item.id === Number($("#documents-employee-picker").value)) || null;
+}
+
 function renderDocuments() {
-  const employee = employees.find((item) => item.id === Number($("#documents-employee-picker").value)) || employees[0];
-  if (!employee) return;
+  const employee = documentsEmployee();
+  if (!employee) {
+    ["#document-count", "#document-category-count", "#document-version-count"].forEach((selector) => { $(selector).textContent = 0; });
+    $("#document-list").innerHTML = emptyState("Nenhum colaborador selecionado.", "lupa");
+    return;
+  }
   const documents = employee.documentLibrary || [];
   const query = $("#document-search").value.toLowerCase().trim();
   const category = $("#document-category-filter").value;
@@ -1038,21 +1581,21 @@ function renderDocuments() {
     return `<div class="document-card">
       <div class="document-card-main">
         <div class="document-card-title">${escapeHtml(document.title)}</div>
-        <div class="document-card-meta">${escapeHtml(document.category)} · ${document.versions.length} versão(ões) · Atualizado em ${documentDate(latest.createdAt)} · ${formatFileSize(latest.size)}</div>
+        <div class="document-card-meta">${escapeHtml(document.category)} · ${escapeHtml(document.versions.length)} versão(ões) · Atualizado em ${documentDate(latest.createdAt)} · ${formatFileSize(latest.size)}</div>
         ${document.notes ? `<div class="document-card-notes">${escapeHtml(document.notes)}</div>` : ""}
       </div>
       <div class="document-card-actions">
-        <button type="button" class="document-action" data-document-action="download" data-document-id="${document.id}">Baixar</button>
-        <button type="button" class="document-action" data-document-action="version" data-document-id="${document.id}">Nova versão</button>
-        <button type="button" class="document-action" data-document-action="history" data-document-id="${document.id}">Histórico</button>
-        <button type="button" class="document-action danger" data-document-action="remove" data-document-id="${document.id}">Remover</button>
+        <button type="button" class="document-action" data-document-action="download" data-document-id="${escapeHtml(document.id)}">Baixar</button>
+        <button type="button" class="document-action" data-document-action="version" data-document-id="${escapeHtml(document.id)}">Nova versão</button>
+        <button type="button" class="document-action" data-document-action="history" data-document-id="${escapeHtml(document.id)}">Histórico</button>
+        <button type="button" class="document-action danger" data-document-action="remove" data-document-id="${escapeHtml(document.id)}">Remover</button>
       </div>
     </div>`;
   }).join("") : emptyState("Nenhum documento encontrado para este colaborador.", "lupa");
 }
 
 function refreshDocumentFilters() {
-  const employee = employees.find((item) => item.id === Number($("#documents-employee-picker").value)) || employees[0];
+  const employee = documentsEmployee();
   const categories = [...new Set((employee?.documentLibrary || []).map((document) => document.category))].sort();
   const selected = $("#document-category-filter").value;
   $("#document-category-filter").innerHTML = `<option value="">Todas as categorias</option>${categories.map((category) => `<option value="${escapeHtml(category)}">${escapeHtml(category)}</option>`).join("")}`;
@@ -1075,18 +1618,25 @@ function openDocumentDialog(document) {
 function saveDocumentFile(file, document) {
   const reader = new FileReader();
   reader.addEventListener("load", () => {
-    const version = { id: Date.now(), name: file.name, size: file.size, type: file.type || "application/octet-stream", data: reader.result, createdAt: new Date().toISOString() };
-    const employee = employees.find((item) => item.id === Number($("#documents-employee-picker").value)) || employees[0];
+    const employee = documentsEmployee();
+    if (!employee) return;
+    const backup = cloneData(employees);
     if (!employee.documentLibrary) employee.documentLibrary = [];
+    const version = { id: generateId(document ? document.versions : []), name: file.name, size: file.size, type: file.type || "application/octet-stream", data: reader.result, createdAt: new Date().toISOString() };
     if (document) {
       document.versions.push(version);
       document.notes = $("#document-notes").value.trim();
     } else {
-      employee.documentLibrary.unshift({ id: Date.now(), title: $("#document-title").value.trim(), category: $("#document-category").value, notes: $("#document-notes").value.trim(), versions: [version] });
+      employee.documentLibrary.unshift({ id: generateId(employee.documentLibrary), title: $("#document-title").value.trim(), category: $("#document-category").value, notes: $("#document-notes").value.trim(), versions: [version] });
     }
-    localStorage.setItem("employees", JSON.stringify(employees));
+    // Dialogo fica aberto se falhar, para escolher outro arquivo.
+    if (!saveEmployees(backup)) return;
     refreshDocumentFilters();
     $("#document-dialog").close();
+  });
+  reader.addEventListener("error", () => {
+    console.error("Falha ao ler o arquivo:", reader.error);
+    alert("Não foi possível ler o arquivo selecionado. Tente novamente ou escolha outro arquivo.");
   });
   reader.readAsDataURL(file);
 }
@@ -1146,7 +1696,7 @@ function renderEmployeeRecords(employee) {
       const arquivo = record.file;
       const detalhes = [record.type, record.date ? formatDate(record.date) : null, arquivo ? formatFileSize(arquivo.size) : null].filter(Boolean).join(" \u00b7 ");
       const abrir = arquivo
-        ? `<a class="record-file-link" href="${arquivo.data}" download="${escapeHtml(arquivo.name)}" target="_blank" rel="noopener">Abrir</a>`
+        ? `<a class="record-file-link" href="${escapeHtml(arquivo.data)}" download="${escapeHtml(arquivo.name)}" target="_blank" rel="noopener">Abrir</a>`
         : "";
       return `<div class="record-row"><div><strong>${escapeHtml(record.name || "Documento")}</strong><span>${escapeHtml(detalhes)}</span></div><div class="record-row-actions">${abrir}<button type="button" class="remove-record" data-record="documents" data-index="${index}">Remover</button></div></div>`;
     }).join("") + `<div class="document-attach-more"><button type="button" class="button secondary small" data-anexar-documento>+ Anexar documento</button></div>`
@@ -1161,9 +1711,9 @@ function renderEmployeeRecords(employee) {
     const detalhes = [record.description, salario, funcao, record.role].filter(Boolean).map(escapeHtml).join(" \u00b7 ");
     return `<div class="record-row"><div><strong>${escapeHtml(record.date || "Sem data")} \u00b7 ${escapeHtml(record.type)}</strong><span>${detalhes}</span></div><button type="button" class="remove-record" data-record="movements" data-index="${index}">Remover</button></div>`;
   });
-  list("trainings", "Nenhum treinamento cadastrado.", (record, index) => `<div class="record-row"><div><strong>${record.name}</strong><span>${record.date || "Sem data"} · ${record.hours || "Carga não informada"}</span></div><button type="button" class="remove-record" data-record="trainings" data-index="${index}">Remover</button></div>`);
-  list("feedbacks", "Nenhum registro cadastrado.", (record, index) => `<div class="record-row"><div><strong>${record.type} · ${record.date || "Sem data"}</strong><span>${record.description || ""}</span></div><button type="button" class="remove-record" data-record="feedbacks" data-index="${index}">Remover</button></div>`);
-  list("medical", "Nenhum atestado cadastrado.", (record, index) => `<div class="record-row"><div><strong>${record.date || "Sem data"} · ${record.days || 0} dia(s)${record.partial ? " · Parcial" : ""}</strong><span>CID: ${record.cid || "Não informado"} · Médico: ${record.doctor || "Não informado"}</span></div><button type="button" class="remove-record" data-record="medical" data-index="${index}">Remover</button></div>`);
+  list("trainings", "Nenhum treinamento cadastrado.", (record, index) => `<div class="record-row"><div><strong>${escapeHtml(record.name)}</strong><span>${escapeHtml(record.date || "Sem data")} · ${escapeHtml(record.hours || "Carga não informada")}</span></div><button type="button" class="remove-record" data-record="trainings" data-index="${index}">Remover</button></div>`);
+  list("feedbacks", "Nenhum registro cadastrado.", (record, index) => `<div class="record-row"><div><strong>${escapeHtml(record.type)} · ${formatDate(record.date)}${record.author ? ` · por ${escapeHtml(record.author)}` : ""}</strong><span>${escapeHtml(record.description || "")}${record.actions ? ` · Combinados: ${escapeHtml(record.actions)}` : ""}</span></div><button type="button" class="remove-record" data-record="feedbacks" data-index="${index}">Remover</button></div>`);
+  list("medical", "Nenhum atestado cadastrado.", (record, index) => `<div class="record-row"><div><strong>${escapeHtml(record.date || "Sem data")} · ${escapeHtml(record.days || 0)} dia(s)${record.partial ? " · Parcial" : ""}</strong><span>CID: ${escapeHtml(record.cid || "Não informado")} · Médico: ${escapeHtml(record.doctor || "Não informado")}</span></div><button type="button" class="remove-record" data-record="medical" data-index="${index}">Remover</button></div>`);
 }
 
 function refreshEmployeePicker() {
@@ -1176,21 +1726,37 @@ function refreshEmployeePicker() {
       && (!status || employee.status === status)
       && (!department || employee.department === department);
   });
-  $("#employee-picker").innerHTML = filtered.map((employee) => `<option value="${employee.id}">${escapeHtml(employee.name)}</option>`).join("");
+  $("#employee-picker").innerHTML = filtered.map((employee) => `<option value="${escapeHtml(employee.id)}">${escapeHtml(employee.name)}</option>`).join("");
   if (!filtered.length) {
     $("#employee-picker").innerHTML = `<option value="">Nenhum colaborador encontrado</option>`;
   }
   $("#employee-picker").value = $("#employee-id").value || "";
 }
 
-function setupEmployeeFilters() {
-  const departments = [...new Set(employees.map((employee) => employee.department).filter(Boolean))].sort();
-  $("#employee-status-filter").innerHTML = `<option value="">Todos os status</option>${["Ativo", "Férias", "Afastado", "Desligado"].map((status) => `<option>${status}</option>`).join("")}`;
-  $("#employee-department-filter").innerHTML = `<option value="">Todos os departamentos</option>${departments.map((department) => `<option>${escapeHtml(department)}</option>`).join("")}`;
+// Recria as opcoes de um filtro mantendo o que o usuario tinha escolhido.
+function fillFilterOptions(select, firstOption, values) {
+  const selected = select.value;
+  select.innerHTML = `<option value="">${firstOption}</option>${values.map((value) => `<option>${escapeHtml(value)}</option>`).join("")}`;
+  if (selected && values.map(String).includes(selected)) select.value = selected;
 }
 
-function saveEmployee(onSaved) {
-  const id = Number($("#employee-id").value);
+function setupEmployeeFilters() {
+  const departments = [...new Set(employees.map((employee) => employee.department).filter(Boolean))].sort();
+  fillFilterOptions($("#employee-status-filter"), "Todos os status", ["Ativo", "Férias", "Afastado", "Desligado"]);
+  fillFilterOptions($("#employee-department-filter"), "Todos os departamentos", departments);
+}
+
+// options.keepForm: grava sem limpar o formulario (usado ao incluir/remover
+// registros do dossie). options.backup: estado anterior a uma alteracao ja feita
+// em memoria por quem chamou, para desfazer se a gravacao falhar.
+function saveEmployee(onSaved, options = {}) {
+  const backup = options.backup || cloneData(employees);
+  let id = Number($("#employee-id").value);
+  if (!Number.isFinite(id) || id <= 0) {
+    // Colaborador novo: campo vazio virava id 0 e o segundo novo sobrescrevia o primeiro.
+    id = generateId(employees);
+    $("#employee-id").value = id;
+  }
   const employee = employees.find((item) => item.id === id) || { id, documents: [], documentLibrary: [], vacationPeriods: [], movements: [], trainings: [], feedbacks: [], medical: [] };
   ["name", "cpf", "birth", "gender", "salutation", "ethnicity", "marital", "education", "course", "nationality", "birthplace", "role", "department", "manager", "admission", "contract", "salary", "benefits", "probation", "hierarchy", "contractDate", "contractDuration", "contractExpiration", "contractDate2", "contractDuration2", "contractExpiration2", "addressCountry", "addressCep", "addressStreet", "addressNumber", "addressNeighborhood", "addressCity", "addressState", "addressComplement"].forEach((field) => { employee[field] = $(`#employee-${field}`).value.trim(); });
   employee.cellphone = $("#employee-cellphone").value.trim();
@@ -1208,29 +1774,38 @@ function saveEmployee(onSaved) {
   employee.motherName = $("#employee-mother-name").value.trim();
   employee.disability = $("#employee-disability").checked;
   employee.status = employee.status || "Ativo";
-  persistEmployee(employee, id, onSaved);
+  return persistEmployee(employee, id, onSaved, { ...options, backup });
 }
 
-function persistEmployee(employee, id, onSaved) {
+function persistEmployee(employee, id, onSaved, options = {}) {
   delete employee.unit;
   delete employee.photo;
   employees = employees.some((item) => item.id === id) ? employees.map((item) => item.id === id ? employee : item) : [...employees, employee];
-  localStorage.setItem("employees", JSON.stringify(employees));
+  if (!saveEmployees(options.backup)) return false;
   refreshEmployeePicker();
   refreshDocumentsEmployeePicker();
   setupEmployeeFilters();
   setupEmployeeListFilters();
   renderEmployeeList();
   render(); // o lembrete de experiencias vive na home e precisa acompanhar
-  resetEmployeeForm();
-  $("#employee-picker").value = "";
+  renderVacations();
+  renderFollowup();
+  // Incluir/remover registro nao pode limpar o formulario: sem o id, a proxima
+  // acao do dossie ia parar em outro colaborador (ou criava um cadastro vazio).
+  if (options.keepForm) {
+    renderEmployeeRecords(employee);
+  } else {
+    resetEmployeeForm();
+    $("#employee-picker").value = "";
+  }
   if (onSaved) onSaved();
+  return true;
 }
 
 $("#new-employee").addEventListener("click", () => {
   resetEmployeeForm();
   activateTab("dossie");
-  history.replaceState(null, "", "#dossie");
+  setTabHash("dossie");
   $("#employee-name").focus();
 });
 
@@ -1260,14 +1835,14 @@ function renderEmployeeList() {
 
 function setupEmployeeListFilters() {
   const departments = [...new Set(employees.map((employee) => employee.department).filter(Boolean))].sort();
-  $("#employee-list-status-filter").innerHTML = `<option value="">Todos os status</option>${["Ativo", "Férias", "Afastado", "Desligado"].map((status) => `<option>${status}</option>`).join("")}`;
-  $("#employee-list-department-filter").innerHTML = `<option value="">Todos os departamentos</option>${departments.map((department) => `<option>${escapeHtml(department)}</option>`).join("")}`;
+  fillFilterOptions($("#employee-list-status-filter"), "Todos os status", ["Ativo", "Férias", "Afastado", "Desligado"]);
+  fillFilterOptions($("#employee-list-department-filter"), "Todos os departamentos", departments);
 }
 
 $("#new-employee-from-list").addEventListener("click", () => {
   resetEmployeeForm();
   activateTab("dossie");
-  history.replaceState(null, "", "#dossie");
+  setTabHash("dossie");
   $("#employee-name").focus();
 });
 ["#employee-list-search", "#employee-list-status-filter", "#employee-list-department-filter"].forEach((selector) => $(selector).addEventListener("input", renderEmployeeList));
@@ -1279,7 +1854,7 @@ $("#employee-list").addEventListener("click", (event) => {
   if (!employee) return;
   fillEmployeeForm(employee);
   activateTab("dossie");
-  history.replaceState(null, "", "#dossie");
+  setTabHash("dossie");
 });
 $("#home-probation-list").addEventListener("click", (event) => {
   const item = event.target.closest("[data-probation-employee]");
@@ -1287,7 +1862,7 @@ $("#home-probation-list").addEventListener("click", (event) => {
   if (!employee) return;
   fillEmployeeForm(employee);
   activateTab("dossie");
-  history.replaceState(null, "", "#dossie");
+  setTabHash("dossie");
 });
 $("#employee-list").addEventListener("keydown", (event) => {
   if (event.key !== "Enter" && event.key !== " ") return;
@@ -1353,16 +1928,12 @@ async function anexarDocumentos(arquivos) {
   }
 
   if (aceitos.length) {
+    // A copia sai ANTES de incluir: se nao couber no navegador, saveEmployees
+    // volta exatamente a este estado e redesenha, sem documento fantasma.
+    // saveEmployee nao lanca erro na falta de espaco - avisa e retorna false.
+    const backup = cloneData(employees);
     employee.documents.push(...aceitos);
-    const idAberto = employee.id;
-    try {
-      saveEmployee(() => {
-        const salvo = employees.find((item) => item.id === idAberto);
-        if (salvo) fillEmployeeForm(salvo);
-      });
-    } catch {
-      // Cota do localStorage estourada: desfaz e avisa, sem quebrar a tela.
-      employee.documents.splice(-aceitos.length, aceitos.length);
+    if (!saveEmployee(null, { keepForm: true, backup })) {
       recusados.push("N\u00e3o h\u00e1 espa\u00e7o para guardar. Remova documentos antigos e tente de novo.");
     }
   }
@@ -1428,6 +1999,10 @@ function addEmployeeRecord(field) {
     medical: { title: "Novo atestado", fields: [["record-date", "Data do atestado", "date"], ["record-cid", "CID"], ["record-days", "Quantidade de dias", "number"], ["record-doctor", "Nome do médico"], ["record-partial", "Atestado parcial", "checkbox"]] }
   };
   const config = configs[field];
+  if (!currentEmployee()) {
+    alert("Salve o cadastro do colaborador antes de adicionar registros.");
+    return;
+  }
   $("#record-title").textContent = config.title;
   $("#record-fields").innerHTML = config.fields.map(([id, label, type = "text", extra = ""]) => {
     if (type === "checkbox") return `<label class="check-field"><input id="${id}" type="checkbox">${label}</label>`;
@@ -1450,7 +2025,12 @@ $("#record-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const field = $("#record-dialog").dataset.field;
   const employee = currentEmployee();
-  if (!employee[field]) employee[field] = [];
+  if (!employee) {
+    $("#record-dialog").close();
+    return;
+  }
+  const backup = cloneData(employees);
+  if (!Array.isArray(employee[field])) employee[field] = [];
   const value = (id) => $(`#${id}`)?.value || "";
   const alteracaoSalarial = field === "movements" && isSalaryChange(value("record-type"));
   const record = field === "movements" ? {
@@ -1466,21 +2046,7 @@ $("#record-form").addEventListener("submit", async (event) => {
     field === "feedbacks" ? { type: value("record-type"), description: value("record-description"), date: value("record-date") } :
     { date: value("record-date"), cid: value("record-cid"), days: value("record-days"), doctor: value("record-doctor"), partial: $("#record-partial").checked };
   employee[field].push(record);
-  // saveEmployee limpa o formulario ao final, o que jogava o dossie para um
-  // colaborador em branco - e o registro seguinte ia parar num cadastro novo.
-  // Reabrimos o mesmo colaborador assim que a gravacao termina.
-  const idAberto = employee.id;
-  const reabrir = () => {
-    const salvo = employees.find((item) => item.id === idAberto);
-    if (salvo) fillEmployeeForm(salvo);
-  };
-  try {
-    saveEmployee(reabrir);
-  } catch (erro) {
-    employee[field].pop();
-    return;
-  }
-  renderEmployeeRecords(employee);
+  if (!saveEmployee(null, { keepForm: true, backup })) return;
   $("#record-dialog").close();
 });
 $("#close-record").addEventListener("click", () => $("#record-dialog").close());
@@ -1515,7 +2081,7 @@ $("#save-employee").addEventListener("click", (event) => {
 $("#employee-success-continue").addEventListener("click", () => {
   $("#employee-success-dialog").close();
   activateTab("colaboradores");
-  history.replaceState(null, "", "#colaboradores");
+  setTabHash("colaboradores");
 });
 // Documentos nao passam mais pelo dialogo: o botao abre direto o seletor de
 // arquivos, tanto no cabecalho do card quanto no convite da area vazia.
@@ -1532,18 +2098,27 @@ $("#document-upload-input").addEventListener("change", async (event) => {
 $("#dossie").addEventListener("click", (event) => {
   if (!event.target.classList.contains("remove-record")) return;
   const employee = currentEmployee();
-  employee[event.target.dataset.record].splice(Number(event.target.dataset.index), 1);
-  saveEmployee();
-  renderEmployeeRecords(employee);
+  const records = employee?.[event.target.dataset.record];
+  const index = Number(event.target.dataset.index);
+  if (!Array.isArray(records) || !records[index]) return;
+  const backup = cloneData(employees);
+  records.splice(index, 1);
+  saveEmployee(null, { keepForm: true, backup });
 });
 
 function refreshDocumentsEmployeePicker() {
   const query = $("#documents-employee-search").value.toLowerCase().trim();
   const filtered = employees.filter((employee) => [employee.name, employee.role, employee.department, employee.level, employee.unit, employee.hierarchy].some((value) => String(value || "").toLowerCase().includes(query)));
-  $("#documents-employee-picker").innerHTML = filtered.length
-    ? filtered.map((employee) => `<option value="${employee.id}">${escapeHtml(employee.name)}</option>`).join("")
+  const picker = $("#documents-employee-picker");
+  const previous = picker.value;
+  picker.innerHTML = filtered.length
+    ? filtered.map((employee) => `<option value="${escapeHtml(employee.id)}">${escapeHtml(employee.name)}</option>`).join("")
     : `<option value="">Nenhum colaborador encontrado</option>`;
-  $("#documents-employee-picker").value = $("#employee-id").value || employees[0]?.id || "";
+  // Valor fora da lista deixava o seletor vazio e a biblioteca mostrava (e
+  // recebia upload) do primeiro colaborador cadastrado.
+  const ids = filtered.map((employee) => String(employee.id));
+  const formId = $("#employee-id").value;
+  picker.value = ids.includes(formId) ? formId : ids.includes(previous) ? previous : (ids[0] || "");
   refreshDocumentFilters();
 }
 
@@ -1557,21 +2132,31 @@ $("#document-form").addEventListener("submit", (event) => {
   event.preventDefault();
   const file = $("#document-file").files[0];
   if (!file) return;
+  // Documentos ficam dentro do localStorage (~5 MB no total, e o base64 ainda cresce 1/3).
+  if (file.size > MAX_DOCUMENT_SIZE) {
+    alert(`O arquivo "${file.name}" tem ${formatFileSize(file.size)}. O limite é de 2 MB por arquivo, porque os documentos ficam guardados no próprio navegador.\n\nReduza o arquivo (por exemplo, comprimindo o PDF) e tente novamente.`);
+    return;
+  }
   const documentId = Number($("#document-dialog").dataset.documentId);
-  const employee = employees.find((item) => item.id === Number($("#documents-employee-picker").value)) || employees[0];
+  const employee = documentsEmployee();
+  if (!employee) {
+    alert("Selecione um colaborador antes de enviar documentos.");
+    return;
+  }
   const document = (employee.documentLibrary || []).find((item) => item.id === documentId);
   saveDocumentFile(file, document);
 });
 $("#document-list").addEventListener("click", (event) => {
   const action = event.target.dataset.documentAction;
   if (!action) return;
-  const employee = employees.find((item) => item.id === Number($("#documents-employee-picker").value)) || employees[0];
-  const selectedDocument = (employee.documentLibrary || []).find((item) => item.id === Number(event.target.dataset.documentId));
+  const employee = documentsEmployee();
+  const selectedDocument = (employee?.documentLibrary || []).find((item) => item.id === Number(event.target.dataset.documentId));
   if (!selectedDocument) return;
   if (action === "version") openDocumentDialog(selectedDocument);
   if (action === "remove") {
+    const backup = cloneData(employees);
     employee.documentLibrary = employee.documentLibrary.filter((item) => item.id !== selectedDocument.id);
-    localStorage.setItem("employees", JSON.stringify(employees));
+    if (!saveEmployees(backup)) return;
     refreshDocumentFilters();
   }
   if (action === "download") {
@@ -1583,7 +2168,7 @@ $("#document-list").addEventListener("click", (event) => {
   }
   if (action === "history") {
     $("#version-dialog-title").textContent = `Versões de ${selectedDocument.title}`;
-    $("#version-list").innerHTML = selectedDocument.versions.slice().reverse().map((version, index) => `<div class="version-row"><div><strong>Versão ${selectedDocument.versions.length - index} · ${escapeHtml(version.name)}</strong><span>${documentDate(version.createdAt)} · ${formatFileSize(version.size)}</span></div><button type="button" class="document-action" data-version-data="${version.data}" data-version-name="${escapeHtml(version.name)}">Baixar</button></div>`).join("");
+    $("#version-list").innerHTML = selectedDocument.versions.slice().reverse().map((version, index) => `<div class="version-row"><div><strong>Versão ${selectedDocument.versions.length - index} · ${escapeHtml(version.name)}</strong><span>${documentDate(version.createdAt)} · ${formatFileSize(version.size)}</span></div><button type="button" class="document-action" data-version-data="${escapeHtml(version.data)}" data-version-name="${escapeHtml(version.name)}">Baixar</button></div>`).join("");
     $("#version-dialog").showModal();
   }
 });
@@ -1610,9 +2195,10 @@ $("#vacation-form").addEventListener("submit", (event) => {
   event.preventDefault();
   const employee = employees.find((item) => item.id === Number($("#vacation-employee").value));
   if (!employee) return;
+  const backup = cloneData(employees);
   if (!employee.vacationPeriods) employee.vacationPeriods = [];
   employee.vacationPeriods.push({
-    id: Date.now(),
+    id: generateId(employee.vacationPeriods),
     status: $("#vacation-status").value,
     acquisitionStart: $("#acquisition-start").value,
     acquisitionEnd: $("#acquisition-end").value,
@@ -1621,7 +2207,7 @@ $("#vacation-form").addEventListener("submit", (event) => {
     vacationEnd: $("#vacation-end").value,
     notes: $("#vacation-notes").value.trim()
   });
-  localStorage.setItem("employees", JSON.stringify(employees));
+  if (!saveEmployees(backup)) return;
   renderVacations();
   $("#vacation-dialog").close();
 });
@@ -1631,13 +2217,15 @@ $("#vacation-list").addEventListener("click", (event) => {
   const [employeeId, periodId] = key.split(":").map(Number);
   const employee = employees.find((item) => item.id === employeeId);
   if (!employee) return;
-  employee.vacationPeriods = employee.vacationPeriods.filter((period) => period.id !== periodId);
-  localStorage.setItem("employees", JSON.stringify(employees));
+  const backup = cloneData(employees);
+  employee.vacationPeriods = (employee.vacationPeriods || []).filter((period) => period.id !== periodId);
+  if (!saveEmployees(backup)) return;
   renderVacations();
 });
 
 setupFilters();
 render();
+if (!corruptedStorageKeys.has("candidates")) writeStorage("candidates", candidates, { silent: true });
 document.addEventListener("error", (event) => {
   const image = event.target;
   if (!image.classList || !image.classList.contains("phone-flag-image")) return;
@@ -1671,7 +2259,7 @@ document.querySelectorAll("[data-list-form]").forEach((form) => {
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     const input = form.querySelector("input");
-    addSettingItem(form.dataset.listForm, input.value);
+    if (!addSettingItem(form.dataset.listForm, input.value)) return;
     input.value = "";
     input.focus();
   });
@@ -1680,7 +2268,7 @@ document.querySelectorAll("[data-settings-page]").forEach((item) => {
   const openSettingsPage = () => {
     const page = item.dataset.settingsPage;
     activateTab(page);
-    history.replaceState(null, "", `#${page}`);
+    setTabHash(page);
     $(`#${page} input`)?.focus();
   };
   item.addEventListener("click", openSettingsPage);
@@ -1693,7 +2281,7 @@ document.querySelectorAll("[data-settings-page]").forEach((item) => {
 });
 const returnToSettings = () => {
   activateTab("cadastro-configuracoes");
-  history.replaceState(null, "", "#cadastro-configuracoes");
+  setTabHash("cadastro-configuracoes");
 };
 document.querySelectorAll("[data-settings-back]").forEach((button) => {
   button.addEventListener("click", () => {
@@ -1723,7 +2311,8 @@ document.querySelectorAll("[data-settings-form]").forEach((form) => {
     event.preventDefault();
     const key = form.dataset.settingsForm;
     const input = form.querySelector("input");
-    addSettingItem(key, input.value);
+    // Se a gravacao falhar, o texto digitado continua no campo.
+    if (!addSettingItem(key, input.value)) return;
     input.value = "";
     input.focus();
   });
@@ -1739,7 +2328,7 @@ document.querySelectorAll(".settings-list").forEach((list) => {
     if (!editButton) return;
     const row = editButton.closest(".settings-list-row");
     const value = editButton.dataset.settingValue;
-    row.innerHTML = `<input class="settings-list-edit-input" value="${escapeHtml(value)}" aria-label="Editar item"><div class="settings-list-actions"><button type="button" class="settings-list-save" data-save-setting="${editButton.dataset.editSetting}" data-setting-value="${escapeHtml(value)}">Salvar</button><button type="button" class="settings-list-cancel">Cancelar</button></div>`;
+    row.innerHTML = `<input class="settings-list-edit-input" value="${escapeHtml(value)}" aria-label="Editar item"><div class="settings-list-actions"><button type="button" class="settings-list-save" data-save-setting="${escapeHtml(editButton.dataset.editSetting)}" data-setting-value="${escapeHtml(value)}">Salvar</button><button type="button" class="settings-list-cancel">Cancelar</button></div>`;
     row.querySelector("input").focus();
     row.querySelector("input").select();
   });
@@ -1766,7 +2355,13 @@ renderEmployeeList();
 refreshDocumentsEmployeePicker();
 refreshVacationEmployees();
 renderVacations();
-const initialTab = location.hash.replace("#", "") || "dashboard";
-const visibleInitialTab = initialTab === "dossie" ? "colaboradores" : initialTab;
-if (visibleInitialTab !== initialTab) history.replaceState(null, "", `#${visibleInitialTab}`);
+renderFollowup();
+const initialTab = tabFromHash();
+const resolvedInitialTab = resolveTab(initialTab);
+const visibleInitialTab = resolvedInitialTab === "dossie" ? "colaboradores" : resolvedInitialTab;
+if (initialTab && visibleInitialTab !== initialTab) history.replaceState(null, "", `#${visibleInitialTab}`);
 activateTab(visibleInitialTab);
+// Voltar/avancar do navegador e links com #aba trocam de tela sem recarregar.
+window.addEventListener("hashchange", syncTabWithHash);
+window.addEventListener("popstate", syncTabWithHash);
+appInitializing = false;

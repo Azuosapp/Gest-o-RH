@@ -20,11 +20,13 @@
         <nav class="nav">
           <a class="nav-item" href="#dashboard" data-tab="dashboard"><span class="nav-icon">⌂</span>Início</a>
           <a class="nav-item" href="#candidatos" data-tab="candidatos"><span class="nav-icon">▦</span>Gestão de currículos</a>
+          <a class="nav-item" href="#relatorios" data-tab="relatorios"><span class="nav-icon">⇩</span>Relatórios</a>
           <div class="nav-group nav-talent-group">
             <button type="button" class="nav-item nav-group-toggle" id="talent-menu-toggle" aria-expanded="true"><span class="nav-icon">▥</span><span>Gestão de Talentos</span><span class="nav-chevron">⌃</span></button>
             <div class="nav-subitems">
               <a class="nav-item nav-subitem" href="#colaboradores" data-tab="colaboradores"><span class="nav-icon">☷</span>Colaboradores</a>
               <a class="nav-item nav-subitem" href="#ferias" data-tab="ferias"><span class="nav-icon">▧</span>Gestão de férias</a>
+              <a class="nav-item nav-subitem" href="#acompanhamento" data-tab="acompanhamento"><span class="nav-icon">◷</span>Feedback e experiência</a>
             </div>
           </div>
         </nav>
@@ -34,6 +36,7 @@
             <button type="button" class="nav-item nav-group-toggle" id="settings-menu-toggle" aria-expanded="true"><span class="nav-icon">⚙</span><span>Configurações</span><span class="nav-chevron">⌃</span></button>
             <div class="nav-subitems">
               <a class="nav-item nav-subitem" href="#cadastro-configuracoes" data-tab="cadastro-configuracoes"><span class="nav-icon">▤</span>Cadastro</a>
+              <a class="nav-item nav-subitem" href="#configuracoes" data-tab="configuracoes"><span class="nav-icon">◫</span>Dados do sistema</a>
             </div>
           </div>
         </nav>
@@ -122,6 +125,7 @@
             <div class="candidates-heading-actions">
               <span class="muted" id="candidate-count"></span>
               <button type="button" class="button secondary small" id="show-curriculum-dashboard">Ver indicadores</button>
+              <button type="button" class="button primary small" id="new-candidate">+ Novo candidato</button>
             </div>
           </div>
           <div class="filters">
@@ -318,7 +322,7 @@
         </section>
         <section id="relatorios" class="tab-panel panel placeholder-panel hidden">
           <p class="eyebrow">Indicadores</p><h2>Relatórios</h2>
-          <p class="placeholder-copy">Os indicadores do funil podem ser exportados e compartilhados com os responsáveis pelas vagas.</p>
+          <p class="placeholder-copy">Exporta em CSV os candidatos que estão filtrados em Gestão de currículos. Para exportar só uma vaga ou um status, filtre lá e volte aqui.</p>
           <button class="button secondary" id="export-report">Exportar dados</button>
         </section>
         <section id="documentos" class="dossier-documents hidden">
@@ -381,6 +385,36 @@
           <article class="panel vacation-periods">
             <div class="panel-heading"><div><p class="eyebrow">Controle legal</p><h2>Períodos aquisitivos e concessivos</h2></div></div>
             <div id="vacation-list" class="record-list"></div>
+          </article>
+        </section>
+        <section id="acompanhamento" class="tab-panel hidden">
+          <div class="vacation-hero">
+            <div><p class="eyebrow">Gestão de talentos</p><h2>Feedback e experiência</h2><p>Registre os feedbacks de cada colaborador e acompanhe o vencimento dos contratos de experiência.</p></div>
+            <button type="button" class="button primary" id="add-feedback-entry">+ Registrar feedback</button>
+          </div>
+          <div class="filters vacation-filters">
+            <input id="followup-search" type="search" placeholder="Buscar colaborador" aria-label="Buscar colaborador">
+            <select id="followup-probation-filter" aria-label="Filtrar contratos de experiência por situação">
+              <option value="">Todas as situações</option>
+              <option value="vencida">Vencida sem decisão</option>
+              <option value="vencendo">Vence em até 15 dias</option>
+              <option value="andamento">Em andamento</option>
+              <option value="concluida">Decisão registrada</option>
+            </select>
+            <select id="followup-feedback-filter" aria-label="Filtrar feedbacks por tipo"><option value="">Todos os tipos</option></select>
+          </div>
+          <div class="document-summary vacation-summary">
+            <div class="metric"><div class="metric-label">Em experiência</div><div class="metric-value" id="followup-probation-count">0</div><div class="metric-note">Aguardando decisão</div></div>
+            <div class="metric"><div class="metric-label">Vencidas sem decisão</div><div class="metric-value" id="followup-overdue-count">0</div><div class="metric-note">Registre prorrogação, efetivação ou encerramento</div></div>
+            <div class="metric"><div class="metric-label">Feedbacks</div><div class="metric-value" id="followup-feedback-count">0</div><div class="metric-note">Nos últimos 30 dias</div></div>
+          </div>
+          <article class="panel followup-panel">
+            <div class="panel-heading"><div><p class="eyebrow">Contratos de experiência</p><h2>Controle de vencimento</h2></div><span class="muted" id="followup-probation-total"></span></div>
+            <div id="probation-control-list" class="record-list"></div>
+          </article>
+          <article class="panel followup-panel">
+            <div class="panel-heading"><div><p class="eyebrow">Histórico</p><h2>Feedbacks dos colaboradores</h2></div><span class="muted" id="followup-feedback-total"></span></div>
+            <div id="feedback-history" class="feedback-timeline"></div>
           </article>
         </section>
         <section id="configuracoes" class="tab-panel panel placeholder-panel hidden">
@@ -536,6 +570,35 @@
           <label class="full-width">Observações<textarea id="vacation-notes" rows="3"></textarea></label>
         </div>
         <div class="dialog-actions"><button type="button" class="button secondary" id="cancel-vacation">Cancelar</button><button type="submit" class="button primary">Salvar período</button></div>
+      </form>
+    </dialog>
+    <dialog id="feedback-entry-dialog">
+      <form id="feedback-entry-form">
+        <div class="dialog-heading"><div><p class="eyebrow">Feedback e experiência</p><h2>Registrar feedback</h2></div><button type="button" class="icon-button" id="close-feedback-entry" aria-label="Fechar">×</button></div>
+        <div class="form-grid">
+          <label>Colaborador<select required id="feedback-entry-employee"></select></label>
+          <label>Data da conversa<input required id="feedback-entry-date" type="date"></label>
+          <label>Tipo<select required id="feedback-entry-type"><option>Feedback positivo</option><option>Feedback construtivo</option><option>Avaliação de desempenho</option><option>Avaliação de experiência</option><option>Advertência</option><option>Comunicado</option></select></label>
+          <label>Conduzido por<input id="feedback-entry-author" placeholder="Quem conduziu a conversa"></label>
+          <label class="full-width">O que foi conversado<textarea required id="feedback-entry-description" rows="4"></textarea></label>
+          <label class="full-width">Combinados e próximos passos<textarea id="feedback-entry-actions" rows="3" placeholder="Opcional"></textarea></label>
+        </div>
+        <p class="muted feedback-entry-note">O registro também aparece no cadastro do colaborador, em Feedbacks, advertências e avaliações.</p>
+        <div class="dialog-actions"><button type="button" class="button secondary" id="cancel-feedback-entry">Cancelar</button><button type="submit" class="button primary">Salvar feedback</button></div>
+      </form>
+    </dialog>
+    <dialog id="probation-decision-dialog">
+      <form id="probation-decision-form">
+        <div class="dialog-heading"><div><p class="eyebrow">Contrato de experiência</p><h2 id="probation-decision-title">Registrar decisão</h2></div><button type="button" class="icon-button" id="close-probation-decision" aria-label="Fechar">×</button></div>
+        <p class="probation-decision-context" id="probation-decision-context"></p>
+        <div class="form-grid">
+          <label>Decisão<select required id="probation-decision-result"></select></label>
+          <label>Data da decisão<input required id="probation-decision-date" type="date"></label>
+          <label>Responsável<input id="probation-decision-author" placeholder="Quem decidiu"></label>
+          <label class="full-width">Justificativa<textarea id="probation-decision-notes" rows="3" placeholder="Opcional"></textarea></label>
+        </div>
+        <p class="field-hint" id="probation-decision-hint"></p>
+        <div class="dialog-actions"><button type="button" class="button secondary" id="cancel-probation-decision">Cancelar</button><button type="submit" class="button primary">Salvar decisão</button></div>
       </form>
     </dialog>
     <dialog id="employee-success-dialog" class="success-dialog">
